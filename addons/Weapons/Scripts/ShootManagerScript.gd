@@ -269,7 +269,7 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 	return true
 	
 
-func apply_bullet_bend(velocity: Vector3, bend_rate: Vector3, delta: float) -> Vector3:
+func apply_bullet_bend(velocity: Vector3, bend_rate: Vector3, roll_angle: float, delta: float) -> Vector3:
 	var forward: Vector3 = velocity.normalized()
 
 	if forward.length_squared() <= 0.000001:
@@ -282,6 +282,10 @@ func apply_bullet_bend(velocity: Vector3, bend_rate: Vector3, delta: float) -> V
 	var right: Vector3 = forward.cross(ref_up).normalized()
 	var up: Vector3 = right.cross(forward).normalized()
 
+	if roll_angle != 0.0:
+		right = right.rotated(forward, roll_angle)
+		up = up.rotated(forward, roll_angle)
+
 	var bent: Vector3 = forward
 
 	# local pitch
@@ -291,11 +295,6 @@ func apply_bullet_bend(velocity: Vector3, bend_rate: Vector3, delta: float) -> V
 	# local yaw
 	if bend_rate.y != 0.0:
 		bent = bent.rotated(up, bend_rate.y * delta)
-
-	# optional local roll: rotates the bend frame itself
-	if bend_rate.z != 0.0:
-		right = right.rotated(forward, bend_rate.z * delta)
-		up = up.rotated(forward, bend_rate.z * delta)
 
 	return bent.normalized() * velocity.length()
 
@@ -375,14 +374,16 @@ func intersect_bullet_arc(
 	var travelled: float = 0.0
 	var current_pos: Vector3 = origin
 	var velocity: Vector3 = initial_direction.normalized() * bullet_speed
+	var roll_angle: float = 0.0
 	if debug_points != null:
 		debug_points.append(current_pos)
 
 	while travelled < max_distance:
 		var dt: float = segment_length / bullet_speed
+		roll_angle += bend_rate.z * dt
 
 		# first apply bend
-		velocity = apply_bullet_bend(velocity, bend_rate, dt)
+		velocity = apply_bullet_bend(velocity, bend_rate, roll_angle, dt)
 
 		# then gravity
 		velocity += Vector3.DOWN * gravity * dt
