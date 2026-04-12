@@ -3,9 +3,15 @@ extends Node3D
 signal bullet_hit
 signal bullet_miss
 
+const DEBUG_BULLET_ARC_COLOR = Color(1.0, 0.45, 0.1, 0.85)
+
 var cW #current weapon
 var pointOfCollision : Vector3 = Vector3.ZERO
 var rng : RandomNumberGenerator
+
+@export_group("Debug")
+@export var debug_draw_bullet_arc: bool = false
+@export_range(0.05, 2.0, 0.05) var debug_bullet_arc_duration: float = 0.15
 
 @onready var weaponManager : Node3D = %WeaponManager #weapon manager
 
@@ -189,6 +195,9 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 	rng = RandomNumberGenerator.new()
 
 	var origin: Vector3 = cW.weaponSlot.attackPoint.global_transform.origin
+	var debug_points = null
+	if debug_draw_bullet_arc:
+		debug_points = []
 
 	var spread: Vector3 = Vector3(
 		rng.randf_range(cW.minSpread, cW.maxSpread),
@@ -208,7 +217,11 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 		20, # cW.bulletGravity,
 		Vector3(0,10,0), # cW.bulletBend,
 		2.0,
+		debug_points,
 	)
+
+	if debug_points != null:
+		draw_debug_bullet_arc(debug_points)
 
 	if hitscanBulletCollision.is_empty():
 		print("Very MISS")
@@ -256,11 +269,7 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 	return true
 	
 
-func apply_bullet_bend(
-	velocity: Vector3,
-	bend_rate: Vector3,
-	delta: float
-) -> Vector3:
+func apply_bullet_bend(velocity: Vector3, bend_rate: Vector3, delta: float) -> Vector3:
 	var forward: Vector3 = velocity.normalized()
 
 	if forward.length_squared() <= 0.000001:
@@ -289,6 +298,31 @@ func apply_bullet_bend(
 		up = up.rotated(forward, bend_rate.z * delta)
 
 	return bent.normalized() * velocity.length()
+
+
+func draw_debug_bullet_arc(points: Array):
+	if points == null or points.size() < 2:
+		return
+
+	var line_mesh := ImmediateMesh.new()
+	var line_material := StandardMaterial3D.new()
+	line_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	line_material.albedo_color = DEBUG_BULLET_ARC_COLOR
+	line_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	line_material.no_depth_test = true
+
+	line_mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, line_material)
+	for point in points:
+		line_mesh.surface_add_vertex(point)
+	line_mesh.surface_end()
+
+	var line_instance := MeshInstance3D.new()
+	line_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	line_instance.mesh = line_mesh
+	get_tree().get_root().add_child(line_instance)
+
+	var cleanup_timer := get_tree().create_timer(debug_bullet_arc_duration)
+	cleanup_timer.timeout.connect(line_instance.queue_free)
 
 
 func intersect_bullet_arcOrig(
@@ -325,6 +359,7 @@ func intersect_bullet_arcOrig(
 
 	return {}
 
+
 func intersect_bullet_arc(
 	origin: Vector3,
 	initial_direction: Vector3,
@@ -332,13 +367,16 @@ func intersect_bullet_arc(
 	bullet_speed: float,
 	gravity: float,
 	bend_rate: Vector3,
-	segment_length: float = 2.0
+	segment_length: float = 2.0,
+	debug_points = null
 ) -> Dictionary:
 	var space_state = get_world_3d().direct_space_state
 
 	var travelled: float = 0.0
 	var current_pos: Vector3 = origin
 	var velocity: Vector3 = initial_direction.normalized() * bullet_speed
+	if debug_points != null:
+		debug_points.append(current_pos)
 
 	while travelled < max_distance:
 		var dt: float = segment_length / bullet_speed
@@ -357,13 +395,19 @@ func intersect_bullet_arc(
 
 		var hit: Dictionary = space_state.intersect_ray(query)
 		if not hit.is_empty():
+			if debug_points != null:
+				debug_points.append(hit.position)
 			hit["bullet_direction"] = velocity.normalized()
 			return hit
+
+		if debug_points != null:
+			debug_points.append(next_pos)
 
 		travelled += current_pos.distance_to(next_pos)
 		current_pos = next_pos
 
 	return {}	 
+	
 	
 func projectileShot(pointOfCollisionProjectile : Vector3):
 	rng = RandomNumberGenerator.new()
