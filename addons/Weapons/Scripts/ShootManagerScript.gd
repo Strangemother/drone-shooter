@@ -4,6 +4,8 @@ signal bullet_hit
 signal bullet_miss
 
 const DEBUG_BULLET_ARC_COLOR = Color.CYAN
+const HITSCAN_PATH_BEND_STEER = 0
+const HITSCAN_PATH_HELIX = 1
 
 var cW #current weapon
 var pointOfCollision : Vector3 = Vector3.ZERO
@@ -12,6 +14,18 @@ var rng : RandomNumberGenerator
 @export_group("Debug")
 @export var debug_draw_bullet_arc: bool = false
 @export_range(0.05, 2.0, 0.05) var debug_bullet_arc_duration: float = 0.15
+
+@export_group("Hitscan Path")
+@export_enum("Bend steer", "Helix") var hitscan_path_mode: int = HITSCAN_PATH_BEND_STEER
+@export var hitscan_bullet_speed: float = 300.0
+@export var hitscan_bullet_gravity: float = 20.0
+@export var hitscan_bend_rate: Vector3 = Vector3(0, 2, -1.0)
+@export_range(0.25, 10.0, 0.25) var hitscan_segment_length: float = 2.0
+
+@export_group("Hitscan Helix")
+@export_range(0.0, 5.0, 0.01) var helix_radius: float = 0.35
+@export_range(-4.0, 4.0, 0.01) var helix_turns_per_meter: float = 0.6
+@export_range(0.0, 6.28319, 0.01) var helix_phase_offset: float = 0.0
 
 @onready var weaponManager : Node3D = %WeaponManager #weapon manager
 
@@ -209,16 +223,32 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 	var initial_direction: Vector3 = (aimed_point - origin).normalized()
 	var max_distance: float = cW.maxRange
 
-	var hitscanBulletCollision: Dictionary = intersect_bullet_arc(
-		origin,
-		initial_direction,
-		max_distance,
-		300, # cW.bulletSpeed,
-		20, # cW.bulletGravity,
-		Vector3(0,2,-1.0), # cW.bulletBend,
-		2.0,
-		debug_points,
-	)
+	var hitscanBulletCollision: Dictionary = {}
+	match hitscan_path_mode:
+		HITSCAN_PATH_HELIX:
+			hitscanBulletCollision = intersect_bullet_helix(
+				origin,
+				initial_direction,
+				max_distance,
+				hitscan_bullet_speed,
+				hitscan_bullet_gravity,
+				helix_radius,
+				helix_turns_per_meter,
+				helix_phase_offset,
+				hitscan_segment_length,
+				debug_points,
+			)
+		_:
+			hitscanBulletCollision = intersect_bullet_arc(
+				origin,
+				initial_direction,
+				max_distance,
+				hitscan_bullet_speed,
+				hitscan_bullet_gravity,
+				hitscan_bend_rate,
+				hitscan_segment_length,
+				debug_points,
+			)
 
 	if debug_points != null:
 		draw_debug_bullet_arc(debug_points)
@@ -269,18 +299,37 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 	return true
 	
 
-func apply_bullet_bend(velocity: Vector3, bend_rate: Vector3, roll_angle: float, delta: float) -> Vector3:
-	var forward: Vector3 = velocity.normalized()
-
-	if forward.length_squared() <= 0.000001:
-		return velocity
-
+func get_bullet_frame(forward: Vector3) -> Dictionary:
 	var ref_up: Vector3 = Vector3.UP
 	if abs(forward.dot(ref_up)) > 0.98:
 		ref_up = Vector3.RIGHT
 
 	var right: Vector3 = forward.cross(ref_up).normalized()
 	var up: Vector3 = right.cross(forward).normalized()
+
+	return {
+		"right": right,
+		"up": up,
+	}
+
+
+func get_helix_offset(forward: Vector3, phase: float, radius: float) -> Vector3:
+	if radius == 0.0:
+		return Vector3.ZERO
+
+	var frame := get_bullet_frame(forward)
+	return frame["right"] * cos(phase) * radius + frame["up"] * sin(phase) * radius
+
+
+func apply_bullet_bend(velocity: Vector3, bend_rate: Vector3, roll_angle: float, delta: float) -> Vector3:
+	var forward: Vector3 = velocity.normalized()
+
+	if forward.length_squared() <= 0.000001:
+		return velocity
+
+	var frame := get_bullet_frame(forward)
+	var right: Vector3 = frame["right"]
+	var up: Vector3 = frame["up"]
 
 	if roll_angle != 0.0:
 		right = right.rotated(forward, roll_angle)
@@ -322,6 +371,65 @@ func draw_debug_bullet_arc(points: Array):
 
 	var cleanup_timer := get_tree().create_timer(debug_bullet_arc_duration)
 	cleanup_timer.timeout.connect(line_instance.queue_free)
+
+
+func intersect_bullet_helix(
+	origin: Vector3,
+	initial_direction: Vector3,
+	max_distance: float,
+	bullet_speed: float,
+	gravity: float,
+	radius: float,
+	turns_per_meter: float,
+	phase_offset: float = 0.0,
+	segment_length: float = 2.0,
+	debug_points = null
+) -> Dictionary:
+	var space_state = get_world_3d().direct_space_state
+
+	var travelled: float = 0.0
+	var center_pos: Vector3 = origin
+	var current_pos: Vector3 = origin
+	var center_velocity: Vector3 = initial_direction.normalized() * bullet_speed
+	var initial_offset: Vector3 = get_helix_offset(initial_direction.normalized(), phase_offset, radius)
+	if debug_points != null:
+		debug_points.append(current_pos)
+
+	while travelled < max_distance:
+		var dt: float = segment_length / bullet_speed
+		var next_center_pos: Vector3 = center_pos + center_velocity * dt
+		var center_step: Vector3 = next_center_pos - center_pos
+		if center_step.length_squared() <= 0.000001:
+			break
+
+		travelled += center_step.length()
+		var phase: float = phase_offset + travelled * turns_per_meter * TAU
+		var helix_offset: Vector3 = get_helix_offset(center_step.normalized(), phase, radius)
+		var next_pos: Vector3 = next_center_pos + helix_offset - initial_offset
+
+		var query := PhysicsRayQueryParameters3D.create(current_pos, next_pos)
+		query.collide_with_areas = true
+		query.collide_with_bodies = true
+
+		var hit: Dictionary = space_state.intersect_ray(query)
+		if not hit.is_empty():
+			if debug_points != null:
+				debug_points.append(hit.position)
+
+			var hit_direction: Vector3 = hit.position - current_pos
+			if hit_direction.length_squared() <= 0.000001:
+				hit_direction = next_pos - current_pos
+			hit["bullet_direction"] = hit_direction.normalized()
+			return hit
+
+		if debug_points != null:
+			debug_points.append(next_pos)
+
+		center_pos = next_center_pos
+		current_pos = next_pos
+		center_velocity += Vector3.DOWN * gravity * dt
+
+	return {}
 
 
 func intersect_bullet_arcOrig(
