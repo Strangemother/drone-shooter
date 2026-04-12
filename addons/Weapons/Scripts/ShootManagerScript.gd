@@ -215,7 +215,7 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 		max_distance,
 		300, # cW.bulletSpeed,
 		20, # cW.bulletGravity,
-		Vector3(0,80,180), # cW.bulletBend,
+		Vector3(0,2,-1.0), # cW.bulletBend,
 		2.0,
 		debug_points,
 	)
