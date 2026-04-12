@@ -1,0 +1,30 @@
+[gd_scene load_steps=4 format=3 uid="uid://cborlhgr2nhla"]
+
+[ext_resource type="Script" uid="uid://wttag8xgoko8" path="res://hud/scripts/hit_text.gd" id="1_pf0t1"]
+
+[sub_resource type="SystemFont" id="SystemFont_buf4k"]
+font_weight = 800
+subpixel_positioning = 0
+
+[sub_resource type="SystemFont" id="SystemFont_mdlbe"]
+subpixel_positioning = 0
+
+[node name="HitText" type="Node2D"]
+script = ExtResource("1_pf0t1")
+
+[node name="Label" type="RichTextLabel" parent="."]
+offset_left = -38.0
+offset_top = -21.0
+offset_right = 40.0
+offset_bottom = 19.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 7
+theme_override_fonts/normal_font = SubResource("SystemFont_buf4k")
+theme_override_fonts/bold_font = SubResource("SystemFont_mdlbe")
+theme_override_font_sizes/normal_font_size = 13
+text = "POW"
+scroll_active = false
+autowrap_mode = 0
+horizontal_alignment = 1
+vertical_alignment = 1
+justification_flags = 0
