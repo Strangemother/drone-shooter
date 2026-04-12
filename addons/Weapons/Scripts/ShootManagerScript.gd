@@ -3,7 +3,7 @@ extends Node3D
 signal bullet_hit
 signal bullet_miss
 
-const DEBUG_BULLET_ARC_COLOR = Color(1.0, 0.45, 0.1, 0.85)
+const DEBUG_BULLET_ARC_COLOR = Color.CYAN
 
 var cW #current weapon
 var pointOfCollision : Vector3 = Vector3.ZERO
@@ -215,7 +215,7 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 		max_distance,
 		300, # cW.bulletSpeed,
 		20, # cW.bulletGravity,
-		Vector3(0,10,0), # cW.bulletBend,
+		Vector3(0,80,180), # cW.bulletBend,
 		2.0,
 		debug_points,
 	)

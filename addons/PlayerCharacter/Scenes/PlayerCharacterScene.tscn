@@ -1445,6 +1445,8 @@ skeleton = NodePath("")
 [node name="ShootManager" type="Node3D" parent="CameraHolder/CameraRecoilHolder/Camera/WeaponManager"]
 unique_name_in_owner = true
 script = ExtResource("96_j45p8")
+debug_draw_bullet_arc = true
+debug_bullet_arc_duration = 2.0
 
 [node name="ReloadManager" type="Node3D" parent="CameraHolder/CameraRecoilHolder/Camera/WeaponManager"]
 unique_name_in_owner = true
