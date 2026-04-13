@@ -28,6 +28,14 @@ var debug_bullet_arc_instance: MeshInstance3D = null
 @export_range(-4.0, 4.0, 0.01) var helix_turns_per_meter: float = 0.6
 @export_range(0.0, 6.28319, 0.01) var helix_phase_offset: float = 0.0
 
+@export_group("Hitscan Penetration")
+@export var hitscan_allow_penetration: bool = true
+@export_range(0.0, 4.0, 0.01) var hitscan_penetration_budget: float = 1.0
+@export_range(0.001, 0.25, 0.001) var hitscan_penetration_offset: float = 0.02
+@export_range(0.0, 1.0, 0.01) var hitscan_enemy_density: float = 0.3
+@export_range(0.0, 1.0, 0.01) var hitscan_object_density: float = 1.0
+@export_range(0.0, 1.0, 0.01) var hitscan_default_density: float = 1.0
+
 @onready var weaponManager : Node3D = %WeaponManager #weapon manager
 
 func getCurrentWeapon(currWeap):
@@ -224,10 +232,10 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 	var initial_direction: Vector3 = (aimed_point - origin).normalized()
 	var max_distance: float = cW.maxRange
 
-	var hitscanBulletCollision: Dictionary = {}
+	var hitscanBulletCollisions: Array = []
 	match hitscan_path_mode:
 		HITSCAN_PATH_HELIX:
-			hitscanBulletCollision = intersect_bullet_helix(
+			hitscanBulletCollisions = intersect_bullet_helix(
 				origin,
 				initial_direction,
 				max_distance,
@@ -240,7 +248,7 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 				debug_points,
 			)
 		_:
-			hitscanBulletCollision = intersect_bullet_arc(
+			hitscanBulletCollisions = intersect_bullet_arc(
 				origin,
 				initial_direction,
 				max_distance,
@@ -254,27 +262,40 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 	if debug_points != null:
 		draw_debug_bullet_arc(debug_points)
 
-	if hitscanBulletCollision.is_empty():
+	if hitscanBulletCollisions.is_empty():
 		print("Very MISS")
 		bullet_miss.emit(null, null)
 		return false
 
+	var hit_damageable_target: bool = false
+	for hitscanBulletCollision in hitscanBulletCollisions:
+		if process_hitscan_collision(origin, hitscanBulletCollision):
+			hit_damageable_target = true
+
+	if not hit_damageable_target:
+		var blocking_collision: Dictionary = hitscanBulletCollisions[hitscanBulletCollisions.size() - 1]
+		print("MISS")
+		bullet_miss.emit(blocking_collision.position, blocking_collision.normal)
+		return false
+
+	return true
+
+
+func process_hitscan_collision(origin: Vector3, hitscanBulletCollision: Dictionary) -> bool:
 	var collider = hitscanBulletCollision.collider
 	var colliderPoint: Vector3 = hitscanBulletCollision.position
 	var colliderNormal: Vector3 = hitscanBulletCollision.normal
 	var hitscanBulletDirection: Vector3 = hitscanBulletCollision["bullet_direction"]
-	var finalDamage: int
 
 	if not collider.has_method("hitscanHit"):
 		weaponManager.displayBulletHole(colliderPoint, colliderNormal)
-		print("MISS")
-		bullet_miss.emit(colliderPoint, colliderNormal)
 		return false
 
-	var maxDamage = cW.damagePerProj
+	var maxDamage: float = cW.damagePerProj
 	var shot_distance: float = origin.distance_to(colliderPoint)
-	var sample = cW.damageDropoff.sample(shot_distance / cW.maxRange)
+	var sample: float = cW.damageDropoff.sample(shot_distance / cW.maxRange)
 	var groupName: String = "urm"
+	var finalDamage: float = 0.0
 
 	if collider.is_in_group("Enemies"):
 		groupName = "Body"
@@ -295,9 +316,115 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 
 	else:
 		weaponManager.displayBulletHole(colliderPoint, colliderNormal)
+		return false
 
 	bullet_hit.emit(colliderPoint, colliderNormal, groupName, finalDamage, sample, maxDamage)
 	return true
+
+
+func get_hitscan_damage_target(collider):
+	if collider == null:
+		return null
+
+	if collider.is_in_group("EnemiesHead"):
+		var parent = collider.get_parent()
+		if parent != null and parent.has_method("hitscanHit"):
+			return parent
+
+	if collider.has_method("hitscanHit"):
+		return collider
+
+	return null
+
+
+func get_hitscan_penetration_density(collider) -> float:
+	var density_source = get_hitscan_damage_target(collider)
+	if density_source != null:
+		if density_source.has_method("get_bullet_density"):
+			return clamp(float(density_source.get_bullet_density()), 0.0, 1.0)
+		if density_source.has_meta("bullet_density"):
+			return clamp(float(density_source.get_meta("bullet_density")), 0.0, 1.0)
+
+	if collider != null and collider.has_method("get_bullet_density"):
+		return clamp(float(collider.get_bullet_density()), 0.0, 1.0)
+	if collider != null and collider.has_meta("bullet_density"):
+		return clamp(float(collider.get_meta("bullet_density")), 0.0, 1.0)
+
+	if collider != null and (collider.is_in_group("Enemies") or collider.is_in_group("EnemiesHead")):
+		return hitscan_enemy_density
+	if collider != null and collider.is_in_group("HitableObjects"):
+		return hitscan_object_density
+
+	return hitscan_default_density
+
+
+func trace_hitscan_segment(
+	segment_start: Vector3,
+	segment_end: Vector3,
+	bullet_direction: Vector3,
+	remaining_penetration: float,
+	hit_results: Array,
+	excluded_rids: Array[RID],
+	ignored_damage_target_ids: Array[int],
+	debug_points = null,
+) -> Dictionary:
+	var current_segment_start: Vector3 = segment_start
+	var travelled_this_segment: float = 0.0
+	var space_state = get_world_3d().direct_space_state
+
+	while current_segment_start.distance_to(segment_end) > 0.0001:
+		var query := PhysicsRayQueryParameters3D.create(current_segment_start, segment_end)
+		query.collide_with_areas = true
+		query.collide_with_bodies = true
+		query.exclude = excluded_rids
+
+		var hit: Dictionary = space_state.intersect_ray(query)
+		if hit.is_empty():
+			travelled_this_segment += current_segment_start.distance_to(segment_end)
+			if debug_points != null:
+				debug_points.append(segment_end)
+			return {
+				"segment_consumed": true,
+				"travelled": travelled_this_segment,
+				"remaining_penetration": remaining_penetration,
+			}
+
+		var damage_target = get_hitscan_damage_target(hit.collider)
+		if damage_target != null and ignored_damage_target_ids.has(damage_target.get_instance_id()):
+			if not excluded_rids.has(hit.rid):
+				excluded_rids.append(hit.rid)
+			continue
+
+		var hit_distance: float = current_segment_start.distance_to(hit.position)
+		travelled_this_segment += hit_distance
+		if debug_points != null:
+			debug_points.append(hit.position)
+
+		hit["bullet_direction"] = bullet_direction
+		hit_results.append(hit)
+		if not excluded_rids.has(hit.rid):
+			excluded_rids.append(hit.rid)
+
+		if damage_target != null:
+			var damage_target_id: int = damage_target.get_instance_id()
+			if not ignored_damage_target_ids.has(damage_target_id):
+				ignored_damage_target_ids.append(damage_target_id)
+
+		remaining_penetration -= get_hitscan_penetration_density(hit.collider)
+		if not hitscan_allow_penetration or remaining_penetration <= 0.0:
+			return {
+				"segment_consumed": false,
+				"travelled": travelled_this_segment,
+				"remaining_penetration": remaining_penetration,
+			}
+
+		current_segment_start = hit.position + bullet_direction * hitscan_penetration_offset
+
+	return {
+		"segment_consumed": true,
+		"travelled": travelled_this_segment,
+		"remaining_penetration": remaining_penetration,
+	}
 	
 
 func get_bullet_frame(forward: Vector3) -> Dictionary:
@@ -386,8 +513,11 @@ func intersect_bullet_helix(
 	phase_offset: float = 0.0,
 	segment_length: float = 2.0,
 	debug_points = null
-) -> Dictionary:
-	var space_state = get_world_3d().direct_space_state
+) -> Array:
+	var hit_results: Array = []
+	var excluded_rids: Array[RID] = []
+	var ignored_damage_target_ids: Array[int] = []
+	var remaining_penetration: float = hitscan_penetration_budget
 
 	var travelled: float = 0.0
 	var center_pos: Vector3 = origin
@@ -404,34 +534,36 @@ func intersect_bullet_helix(
 		if center_step.length_squared() <= 0.000001:
 			break
 
-		travelled += center_step.length()
-		var phase: float = phase_offset + travelled * turns_per_meter * TAU
+		var phase: float = phase_offset + (travelled + center_step.length()) * turns_per_meter * TAU
 		var helix_offset: Vector3 = get_helix_offset(center_step.normalized(), phase, radius)
 		var next_pos: Vector3 = next_center_pos + helix_offset - initial_offset
+		var segment_direction: Vector3 = next_pos - current_pos
+		if segment_direction.length_squared() <= 0.000001:
+			center_pos = next_center_pos
+			current_pos = next_pos
+			center_velocity += Vector3.DOWN * gravity * dt
+			continue
 
-		var query := PhysicsRayQueryParameters3D.create(current_pos, next_pos)
-		query.collide_with_areas = true
-		query.collide_with_bodies = true
-
-		var hit: Dictionary = space_state.intersect_ray(query)
-		if not hit.is_empty():
-			if debug_points != null:
-				debug_points.append(hit.position)
-
-			var hit_direction: Vector3 = hit.position - current_pos
-			if hit_direction.length_squared() <= 0.000001:
-				hit_direction = next_pos - current_pos
-			hit["bullet_direction"] = hit_direction.normalized()
-			return hit
-
-		if debug_points != null:
-			debug_points.append(next_pos)
+		var segment_trace := trace_hitscan_segment(
+			current_pos,
+			next_pos,
+			segment_direction.normalized(),
+			remaining_penetration,
+			hit_results,
+			excluded_rids,
+			ignored_damage_target_ids,
+			debug_points,
+		)
+		travelled += segment_trace["travelled"]
+		remaining_penetration = segment_trace["remaining_penetration"]
+		if not segment_trace["segment_consumed"]:
+			break
 
 		center_pos = next_center_pos
 		current_pos = next_pos
 		center_velocity += Vector3.DOWN * gravity * dt
 
-	return {}
+	return hit_results
 
 
 func intersect_bullet_arcOrig(
@@ -478,8 +610,11 @@ func intersect_bullet_arc(
 	bend_rate: Vector3,
 	segment_length: float = 2.0,
 	debug_points = null
-) -> Dictionary:
-	var space_state = get_world_3d().direct_space_state
+) -> Array:
+	var hit_results: Array = []
+	var excluded_rids: Array[RID] = []
+	var ignored_damage_target_ids: Array[int] = []
+	var remaining_penetration: float = hitscan_penetration_budget
 
 	var travelled: float = 0.0
 	var current_pos: Vector3 = origin
@@ -499,25 +634,24 @@ func intersect_bullet_arc(
 		velocity += Vector3.DOWN * gravity * dt
 
 		var next_pos: Vector3 = current_pos + velocity * dt
+		var segment_trace := trace_hitscan_segment(
+			current_pos,
+			next_pos,
+			velocity.normalized(),
+			remaining_penetration,
+			hit_results,
+			excluded_rids,
+			ignored_damage_target_ids,
+			debug_points,
+		)
+		travelled += segment_trace["travelled"]
+		remaining_penetration = segment_trace["remaining_penetration"]
+		if not segment_trace["segment_consumed"]:
+			break
 
-		var query := PhysicsRayQueryParameters3D.create(current_pos, next_pos)
-		query.collide_with_areas = true
-		query.collide_with_bodies = true
-
-		var hit: Dictionary = space_state.intersect_ray(query)
-		if not hit.is_empty():
-			if debug_points != null:
-				debug_points.append(hit.position)
-			hit["bullet_direction"] = velocity.normalized()
-			return hit
-
-		if debug_points != null:
-			debug_points.append(next_pos)
-
-		travelled += current_pos.distance_to(next_pos)
 		current_pos = next_pos
 
-	return {}	 
+	return hit_results	 
 	
 	
 func projectileShot(pointOfCollisionProjectile : Vector3):
