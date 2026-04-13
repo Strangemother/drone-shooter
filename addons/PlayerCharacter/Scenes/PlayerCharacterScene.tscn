@@ -1446,7 +1446,11 @@ skeleton = NodePath("")
 unique_name_in_owner = true
 script = ExtResource("96_j45p8")
 debug_draw_bullet_arc = true
-debug_bullet_arc_duration = 2.0
+debug_bullet_arc_duration = 10.0
+hitscan_bend_rate = Vector3(0, 20, -0.01)
+helix_radius = 0.7
+helix_turns_per_meter = 0.02
+helix_phase_offset = 0.12
 
 [node name="ReloadManager" type="Node3D" parent="CameraHolder/CameraRecoilHolder/Camera/WeaponManager"]
 unique_name_in_owner = true

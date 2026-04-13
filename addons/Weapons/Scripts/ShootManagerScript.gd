@@ -13,7 +13,7 @@ var rng : RandomNumberGenerator
 
 @export_group("Debug")
 @export var debug_draw_bullet_arc: bool = false
-@export_range(0.05, 2.0, 0.05) var debug_bullet_arc_duration: float = 0.15
+@export_range(0.05, 20.0, 0.05) var debug_bullet_arc_duration: float = 0.15
 
 @export_group("Hitscan Path")
 @export_enum("Bend steer", "Helix") var hitscan_path_mode: int = HITSCAN_PATH_BEND_STEER
