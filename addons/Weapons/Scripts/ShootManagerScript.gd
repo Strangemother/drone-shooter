@@ -10,6 +10,7 @@ const HITSCAN_PATH_HELIX = 1
 var cW #current weapon
 var pointOfCollision : Vector3 = Vector3.ZERO
 var rng : RandomNumberGenerator
+var debug_bullet_arc_instance: MeshInstance3D = null
 
 @export_group("Debug")
 @export var debug_draw_bullet_arc: bool = false
@@ -352,6 +353,9 @@ func draw_debug_bullet_arc(points: Array):
 	if points == null or points.size() < 2:
 		return
 
+	if is_instance_valid(debug_bullet_arc_instance):
+		debug_bullet_arc_instance.queue_free()
+
 	var line_mesh := ImmediateMesh.new()
 	var line_material := StandardMaterial3D.new()
 	line_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -368,9 +372,7 @@ func draw_debug_bullet_arc(points: Array):
 	line_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	line_instance.mesh = line_mesh
 	get_tree().get_root().add_child(line_instance)
-
-	var cleanup_timer := get_tree().create_timer(debug_bullet_arc_duration)
-	cleanup_timer.timeout.connect(line_instance.queue_free)
+	debug_bullet_arc_instance = line_instance
 
 
 func intersect_bullet_helix(
