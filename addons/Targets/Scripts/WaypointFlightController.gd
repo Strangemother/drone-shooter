@@ -109,31 +109,33 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var body_pos := body.global_position
 	var error_world := target_pos - body_pos
 
-	# Project onto the body's local XZ plane so tilt commands are
-	# relative to the drone's current heading.
-	var error_local := body.global_transform.basis.inverse() * error_world
+	# Work in world XZ directly — the attitude PID measures tilt
+	# relative to world UP, so the position error must also be in
+	# world space.  Converting to body-local causes the error to
+	# rotate as the drone tilts, creating a runaway feedback loop.
 
 	# ── if within arrival radius, just stabilise in place ────────
-	var xz_distance := Vector2(error_local.x, error_local.z).length()
+	var xz_distance := Vector2(error_world.x, error_world.z).length()
 	var wp_pitch_target := 0.0
 	var wp_roll_target := 0.0
 
 	if xz_distance > arrival_radius:
-		# Position PID on each horizontal axis → target tilt angle.
-		# Forward (−Z in Godot) needs positive pitch to move there,
-		# so we negate the Z error.
+		# Position PID on each world axis → target tilt angle.
+		# In Godot −Z is forward, so positive Z error (target behind)
+		# needs negative pitch (nose down = tilt forward in −Z).
 		var pitch_correction := _pid(
-			0.0, error_local.z,  # error = how far ahead the target is
+			0.0, error_world.z,
 			pos_p, pos_i, pos_d, dt,
 			_pos_z_integral, _pos_z_prev_error
 		)
 		_pos_z_integral = pitch_correction.y
 		_pos_z_prev_error = pitch_correction.z
-		# Negative because +Z error means target is behind → pitch forward (nose down).
 		wp_pitch_target = clampf(-pitch_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
 
+		# Positive X error (target to the right) needs positive roll
+		# (tilt right).
 		var roll_correction := _pid(
-			0.0, -error_local.x,  # +X error means target is right → roll right
+			0.0, -error_world.x,
 			pos_p, pos_i, pos_d, dt,
 			_pos_x_integral, _pos_x_prev_error
 		)
