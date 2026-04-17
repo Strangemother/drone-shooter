@@ -27,22 +27,22 @@ shape = SubResource("BoxShape3D_b08s0")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 25.0
+max_force = 0.0
 
 [node name="MotorCollisionShape2" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 25.0
+max_force = 0.0
 
 [node name="MotorCollisionShape3" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 25.0
+max_force = 0.0
 
 [node name="MotorCollisionShape4" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 25.0
+max_force = 0.0
