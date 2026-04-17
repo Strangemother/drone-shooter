@@ -6,7 +6,7 @@ class_name DroneThrusterScript
 @export_range(0.0, 500.0, 0.1) var max_force: float = 45.0
 @export_range(0.0, 1.0, 0.001) var throttle: float = 0.0:
 	set(value):
-		field = clampf(value, 0.0, 1.0)
+		throttle = clampf(value, 0.0, 1.0)
 @export var force_axis: Vector3 = Vector3.UP
 @export var enabled: bool = true
 
