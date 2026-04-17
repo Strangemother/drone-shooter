@@ -395,8 +395,8 @@ transform = Transform3D(0.751, 0, 0.660303, 0, 1, 0, -0.660303, 0, 0.751, -12.45
 mass = 1.2
 
 [node name="DroneScene" parent="ShootingRangeTargetManager" groups=["HitableObjects"] instance=ExtResource("10_0ldo7")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.9205, 4.02945, 133.434)
-mass = 12.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65029, 8.24284, 133.434)
+gravity_scale = 1.0
 linear_velocity = Vector3(0, 1, 0)
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_07h0i")]
