@@ -121,8 +121,9 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	if xz_distance > arrival_radius:
 		# Position PID on each world axis → target tilt angle.
-		# In Godot −Z is forward, so positive Z error (target behind)
-		# needs negative pitch (nose down = tilt forward in −Z).
+		# _pid returns (0 - current) so for Z: output ∝ −error_world.z
+		# Positive pitch = nose down = accelerates in −Z, which is
+		# exactly what −error_world.z gives us, so use the output directly.
 		var pitch_correction := _pid(
 			0.0, error_world.z,
 			pos_p, pos_i, pos_d, dt,
@@ -130,7 +131,7 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		)
 		_pos_z_integral = pitch_correction.y
 		_pos_z_prev_error = pitch_correction.z
-		wp_pitch_target = clampf(-pitch_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
+		wp_pitch_target = clampf(pitch_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
 
 		# Positive X error (target to the right) needs positive roll
 		# (tilt right).
