@@ -30,10 +30,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func reset_drone() -> void:
+	print('reset_drone')
 	var drone := _get_drone()
 	if drone == null:
+		print('No drone to reset.')
 		return
-
+	print('Reseting drone: ', drone)
 	# Zero all motion so it doesn't carry momentum from before the reset.
 	drone.linear_velocity = Vector3.ZERO
 	drone.angular_velocity = Vector3.ZERO
