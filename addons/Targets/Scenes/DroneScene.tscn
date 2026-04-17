@@ -11,7 +11,8 @@ size = Vector3(1, 0.638794, 1.46582)
 radius = 0.306051
 
 [node name="DroneScene" type="RigidBody3D"]
-mass = 8.0
+mass = 0.5
+gravity_scale = 2.0
 can_sleep = false
 script = ExtResource("1_b08s0")
 throttle_up_action = &"weaponWheelUp"
@@ -27,22 +28,26 @@ shape = SubResource("BoxShape3D_b08s0")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 0.0
+max_force = 6.0
+throttle = 1.0
 
 [node name="MotorCollisionShape2" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 0.0
+max_force = 6.0
+throttle = 1.0
 
 [node name="MotorCollisionShape3" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 0.0
+max_force = 6.0
+throttle = 1.0
 
 [node name="MotorCollisionShape4" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
-max_force = 0.0
+max_force = 6.0
+throttle = 1.0
