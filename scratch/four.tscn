@@ -1,0 +1,309 @@
+[gd_scene load_steps=17 format=2]
+
+[ext_resource path="res://Thuster.tscn" type="PackedScene" id=1]
+[ext_resource path="res://scripts/Ray.gd" type="Script" id=2]
+[ext_resource path="res://scripts/PowerThruster.gd" type="Script" id=3]
+[ext_resource path="res://scripts/World.gd" type="Script" id=4]
+[ext_resource path="res://assets/HLabel.tscn" type="PackedScene" id=5]
+[ext_resource path="res://scripts/Controller.gd" type="Script" id=6]
+[ext_resource path="res://scripts/DevTools.gd" type="Script" id=7]
+
+[sub_resource type="BoxShape" id=1]
+
+[sub_resource type="CubeMesh" id=2]
+
+[sub_resource type="SpatialMaterial" id=3]
+albedo_color = Color( 0.733333, 0.992157, 0.682353, 1 )
+
+[sub_resource type="BoxShape" id=4]
+extents = Vector3( 1, 0.824652, 19.993 )
+
+[sub_resource type="CubeMesh" id=5]
+
+[sub_resource type="SpatialMaterial" id=6]
+
+[sub_resource type="CylinderShape" id=7]
+
+[sub_resource type="CylinderMesh" id=8]
+
+[sub_resource type="SpatialMaterial" id=9]
+albedo_color = Color( 0.847059, 0.847059, 0.847059, 1 )
+metallic = 0.53
+metallic_specular = 0.65
+
+[node name="World" type="Spatial"]
+script = ExtResource( 4 )
+
+[node name="Rig" type="Spatial" parent="."]
+
+[node name="Floor" type="RigidBody" parent="Rig"]
+mode = 1
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/Floor"]
+transform = Transform( 30, 0, 0, 0, 0.5, 0, 0, 0, 30, 0, 0, 0 )
+shape = SubResource( 1 )
+
+[node name="CollisionShape2" type="MeshInstance" parent="Rig/Floor"]
+transform = Transform( 30, 0, 0, 0, 0.5, 0, 0, 0, 20, 0, 0, 0 )
+mesh = SubResource( 2 )
+material/0 = SubResource( 3 )
+
+[node name="RigidBody" type="RigidBody" parent="Rig"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 23.7568, 2.3319, 0 )
+mode = 1
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/RigidBody"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="Rig/RigidBody/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = SubResource( 6 )
+
+[node name="RigidBody2" type="RigidBody" parent="Rig"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -21.1341, 1.88243, 0 )
+mode = 1
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/RigidBody2"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance" type="MeshInstance" parent="Rig/RigidBody2/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, 0, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="RigidBody3" type="RigidBody" parent="Rig"]
+transform = Transform( -1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 2.3319, -18.273 )
+mode = 1
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/RigidBody3"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="Rig/RigidBody3/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="RigidBody4" type="RigidBody" parent="Rig"]
+transform = Transform( -1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 2.3319, 19.1105 )
+mode = 1
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/RigidBody4"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="Rig/RigidBody4/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="Spatial" type="Spatial" parent="Rig"]
+
+[node name="RigidBody5" type="RigidBody" parent="Rig/Spatial"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 23.7568, 5.2187, 0 )
+mode = 1
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/Spatial/RigidBody5"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="Rig/Spatial/RigidBody5/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="RigidBody6" type="RigidBody" parent="Rig/Spatial"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -21.1341, 4.76923, 0 )
+mode = 1
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/Spatial/RigidBody6"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance" type="MeshInstance" parent="Rig/Spatial/RigidBody6/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, 0, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="RigidBody7" type="RigidBody" parent="Rig/Spatial"]
+transform = Transform( -1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 5.2187, -18.273 )
+mode = 1
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/Spatial/RigidBody7"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="Rig/Spatial/RigidBody7/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="RigidBody8" type="RigidBody" parent="Rig/Spatial"]
+transform = Transform( -1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 5.2187, 19.1105 )
+mode = 1
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/Spatial/RigidBody8"]
+shape = SubResource( 4 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="Rig/Spatial/RigidBody8/CollisionShape"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="SpotLight" type="SpotLight" parent="Rig"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 23.3142, 0 )
+light_color = Color( 0.992157, 0.992157, 0.235294, 1 )
+shadow_enabled = true
+shadow_contact = 0.76
+spot_range = 38.4379
+spot_angle = 50.5112
+
+[node name="DevTools" type="Spatial" parent="."]
+script = ExtResource( 7 )
+
+[node name="VLabelStack" type="VBoxContainer" parent="DevTools"]
+margin_left = 10.0
+margin_top = 10.0
+margin_right = 124.0
+margin_bottom = 24.0
+custom_constants/separation = 4
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="HLabel" parent="DevTools/VLabelStack" instance=ExtResource( 5 )]
+margin_top = 0.0
+margin_right = 114.0
+margin_bottom = 14.0
+
+[node name="HLabelStack" type="HBoxContainer" parent="DevTools"]
+margin_right = 114.0
+margin_bottom = 28.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label" type="Label" parent="DevTools/HLabelStack"]
+visible = false
+margin_top = 7.0
+margin_right = 55.0
+margin_bottom = 21.0
+text = "Label #1"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label2" type="Label" parent="DevTools/HLabelStack"]
+visible = false
+margin_left = 59.0
+margin_top = 7.0
+margin_right = 114.0
+margin_bottom = 21.0
+text = "Label #1"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Engines" type="Spatial" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.02351, 3.13482, 0.512025 )
+
+[node name="Thuster6" parent="Engines" instance=ExtResource( 1 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.28805, -0.00275588, -0.28382 )
+can_sleep = false
+script = ExtResource( 3 )
+washplate_path = NodePath("CollisionShape2/Washplate")
+washplate_scalar = 1.525
+print_report = true
+
+[node name="CollisionShape2" type="CollisionShape" parent="Engines/Thuster6"]
+transform = Transform( 1.56591, 9.14837e-06, 0.000797922, -0.000356356, 0.081652, -0.00326283, -0.000798283, 8.33742e-05, 1.56591, 0, -0.716317, 0 )
+shape = SubResource( 7 )
+
+[node name="Washplate" type="MeshInstance" parent="Engines/Thuster6/CollisionShape2"]
+transform = Transform( 0.999999, -0.00132901, 1.0173e-07, 0.00132901, 0.999999, -2.33139e-05, -7.07458e-08, 2.3314e-05, 1, 0, 1.90735e-06, 0 )
+mesh = SubResource( 8 )
+material/0 = SubResource( 9 )
+
+[node name="RayCast" type="RayCast" parent="Engines/Thuster6"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0 )
+enabled = true
+cast_to = Vector3( 0, -10, 0 )
+script = ExtResource( 2 )
+
+[node name="Right" type="Spatial" parent="Engines"]
+transform = Transform( 0.449194, 0.893434, 0, -0.893434, 0.449194, 0, 0, 0, 1, -8.1048, 2.38419e-07, -2.30836 )
+
+[node name="Thuster4" parent="Engines/Right" instance=ExtResource( 1 )]
+transform = Transform( 0.969907, -0.0598549, 0.236005, -0.0598549, 0.88095, 0.469408, -0.236005, -0.469408, 0.850857, 0, 0, -4 )
+can_sleep = false
+script = ExtResource( 3 )
+
+[node name="Washplate" type="MeshInstance" parent="Engines/Right/Thuster4"]
+transform = Transform( 1.5203, 8.88192e-06, 0.000774683, -0.000269594, 0.0617722, -0.00246843, -0.000775033, 8.0946e-05, 1.5203, 0, -0.716316, 0 )
+mesh = SubResource( 8 )
+material/0 = null
+
+[node name="RayCast" type="RayCast" parent="Engines/Right/Thuster4"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0 )
+enabled = true
+cast_to = Vector3( 0, -10, 0 )
+script = ExtResource( 2 )
+
+[node name="Thuster5" parent="Engines/Right" instance=ExtResource( 1 )]
+transform = Transform( 0.935226, -0.128833, -0.329779, -0.128833, 0.743754, -0.655921, 0.329779, 0.655921, 0.67898, 0, 0, 4 )
+can_sleep = false
+script = ExtResource( 3 )
+
+[node name="Washplate" type="MeshInstance" parent="Engines/Right/Thuster5"]
+transform = Transform( 1.5203, 8.88192e-06, 0.000774683, -0.000269594, 0.0617722, -0.00246843, -0.000775033, 8.0946e-05, 1.5203, 0, -0.716316, 0 )
+mesh = SubResource( 8 )
+material/0 = null
+
+[node name="RayCast" type="RayCast" parent="Engines/Right/Thuster5"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0 )
+enabled = true
+cast_to = Vector3( 0, -10, 0 )
+script = ExtResource( 2 )
+
+[node name="Left" type="Spatial" parent="Engines"]
+transform = Transform( 0.327036, -0.945012, 0, 0.945012, 0.327036, 0, 0, 0, 1, 3.89089, 0, 0 )
+
+[node name="Thuster2" parent="Engines/Left" instance=ExtResource( 1 )]
+transform = Transform( 0.984672, 0.044293, -0.1687, 0.044293, 0.87201, 0.48748, 0.1687, -0.48748, 0.856681, 0, 0, -4 )
+can_sleep = false
+script = ExtResource( 3 )
+
+[node name="Washplate" type="MeshInstance" parent="Engines/Left/Thuster2"]
+transform = Transform( 1.5203, 8.88192e-06, 0.000774683, -0.000269594, 0.0617722, -0.00246843, -0.000775033, 8.0946e-05, 1.5203, 0, -0.716316, 0 )
+mesh = SubResource( 8 )
+material/0 = null
+
+[node name="RayCast" type="RayCast" parent="Engines/Left/Thuster2"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0 )
+enabled = true
+cast_to = Vector3( 0, -10, 0 )
+script = ExtResource( 2 )
+
+[node name="Thuster3" parent="Engines/Left" instance=ExtResource( 1 )]
+transform = Transform( 0.98628, 0.0396457, 0.16025, 0.0396457, 0.885439, -0.463062, -0.16025, 0.463062, 0.871719, 0, 0, 4 )
+can_sleep = false
+script = ExtResource( 3 )
+
+[node name="Washplate" type="MeshInstance" parent="Engines/Left/Thuster3"]
+transform = Transform( 1.5203, 8.88192e-06, 0.000774683, -0.000269594, 0.0617722, -0.00246843, -0.000775033, 8.0946e-05, 1.5203, 0, -0.716316, 0 )
+mesh = SubResource( 8 )
+material/0 = null
+
+[node name="RayCast" type="RayCast" parent="Engines/Left/Thuster3"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0 )
+enabled = true
+cast_to = Vector3( 0, -10, 0 )
+script = ExtResource( 2 )
+
+[node name="Camera" type="Camera" parent="."]
+transform = Transform( 1, 0, 0, 0, 0.971652, 0.236414, 0, -0.236414, 0.971652, 0, 20.0847, 35.4233 )
+current = true
+
+[node name="Controller" type="Spatial" parent="."]
+script = ExtResource( 6 )
+node = NodePath("../Engines/Thuster6")

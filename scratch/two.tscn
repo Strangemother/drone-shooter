@@ -1,0 +1,124 @@
+[gd_scene load_steps=13 format=2]
+
+[ext_resource path="res://Thuster.tscn" type="PackedScene" id=1]
+[ext_resource path="res://scripts/Ray.gd" type="Script" id=2]
+[ext_resource path="res://scripts/PowerThruster.gd" type="Script" id=3]
+[ext_resource path="res://scripts/World.gd" type="Script" id=4]
+[ext_resource path="res://assets/HLabel.tscn" type="PackedScene" id=5]
+[ext_resource path="res://scripts/Controller.gd" type="Script" id=6]
+[ext_resource path="res://scripts/DevTools.gd" type="Script" id=7]
+
+[sub_resource type="BoxShape" id=1]
+
+[sub_resource type="CubeMesh" id=2]
+
+[sub_resource type="CylinderMesh" id=3]
+
+[sub_resource type="BoxShape" id=4]
+extents = Vector3( 1.97614, 0.4659, 4.11412 )
+
+[sub_resource type="CubeMesh" id=5]
+
+[node name="World" type="Spatial"]
+script = ExtResource( 4 )
+
+[node name="Rig" type="Spatial" parent="."]
+
+[node name="Floor" type="RigidBody" parent="Rig"]
+mode = 1
+
+[node name="CollisionShape" type="CollisionShape" parent="Rig/Floor"]
+transform = Transform( 10, 0, 0, 0, 0.5, 0, 0, 0, 10, 0, 0, 0 )
+shape = SubResource( 1 )
+
+[node name="CollisionShape2" type="MeshInstance" parent="Rig/Floor"]
+transform = Transform( 10, 0, 0, 0, 0.5, 0, 0, 0, 10, 0, 0, 0 )
+mesh = SubResource( 2 )
+material/0 = null
+
+[node name="DevTools" type="Spatial" parent="."]
+script = ExtResource( 7 )
+
+[node name="VLabelStack" type="VBoxContainer" parent="DevTools"]
+margin_left = 10.0
+margin_top = 10.0
+margin_right = 124.0
+margin_bottom = 24.0
+custom_constants/separation = 4
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="HLabel" parent="DevTools/VLabelStack" instance=ExtResource( 5 )]
+margin_top = 0.0
+margin_right = 114.0
+margin_bottom = 14.0
+
+[node name="HLabelStack" type="HBoxContainer" parent="DevTools"]
+margin_right = 114.0
+margin_bottom = 28.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label" type="Label" parent="DevTools/HLabelStack"]
+visible = false
+margin_top = 7.0
+margin_right = 55.0
+margin_bottom = 21.0
+text = "Label #1"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label2" type="Label" parent="DevTools/HLabelStack"]
+visible = false
+margin_left = 59.0
+margin_top = 7.0
+margin_right = 114.0
+margin_bottom = 21.0
+text = "Label #1"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Thuster" parent="." instance=ExtResource( 1 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -3.99102, 3.63995, -0.011426 )
+script = ExtResource( 3 )
+add_power = 25.0
+
+[node name="Washplate" type="MeshInstance" parent="Thuster"]
+transform = Transform( 1.5203, 8.88192e-06, 0.000774683, -0.000269594, 0.0617722, -0.00246843, -0.000775033, 8.0946e-05, 1.5203, 0, -0.716316, 0 )
+mesh = SubResource( 3 )
+material/0 = null
+
+[node name="RayCast" type="RayCast" parent="Thuster"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0 )
+enabled = true
+cast_to = Vector3( 0, -10, 0 )
+script = ExtResource( 2 )
+
+[node name="Vehicle" type="RigidBody" parent="."]
+transform = Transform( -0.00605643, -0.999982, 0, 0.999982, -0.00605643, 0, 0, 0, 1, -9.0624, 3.13482, 0.510951 )
+
+[node name="Body" type="CollisionShape" parent="Vehicle"]
+shape = SubResource( 4 )
+
+[node name="BodyMesh" type="MeshInstance" parent="Vehicle/Body"]
+transform = Transform( 1.88211, 0, 0, 0, 0.37225, 0, 0, 0, 3.85463, 0, 0, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="Engines" type="Spatial" parent="Vehicle"]
+
+[node name="Camera" type="Camera" parent="."]
+transform = Transform( 1, 0, 0, 0, 0.990139, 0.140089, 0, -0.140089, 0.990139, 0, 4.34678, 11.5139 )
+current = true
+
+[node name="Thuster2" parent="." instance=ExtResource( 1 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 7.25354, 4, 0 )
+thruster_strength = 9.789
+
+[node name="Controller" type="Spatial" parent="."]
+script = ExtResource( 6 )
+node = NodePath("../Thuster")

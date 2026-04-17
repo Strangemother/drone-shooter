@@ -1,5 +1,14 @@
 extends Node3D
-
+"""
+Node: PlayerCharacterScene > CameraHolder > CameraRecoilHolder > 
+	Camera > WeaponManager > ShootManager
+Bend Steer:
+	large full circle:
+		speed: 300
+		gravity: 20
+		bend rate: 0, 20, -0.01
+		
+"""
 signal bullet_hit
 signal bullet_miss
 
@@ -230,7 +239,7 @@ func hitscanShot(pointOfCollisionHitscan: Vector3):
 
 	var aimed_point: Vector3 = pointOfCollisionHitscan + spread
 	var initial_direction: Vector3 = (aimed_point - origin).normalized()
-	var max_distance: float = cW.maxRange
+	var max_distance: float = cW.maxRange * 2
 
 	var hitscanBulletCollisions: Array = []
 	match hitscan_path_mode:

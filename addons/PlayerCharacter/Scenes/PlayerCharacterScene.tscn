@@ -1301,6 +1301,7 @@ unique_name_in_owner = true
 script = ExtResource("13_834nb")
 weaponResources = Array[ExtResource("14_ca0qr")]([ExtResource("15_1lhsp"), ExtResource("16_tyw5b"), ExtResource("17_bj161"), ExtResource("18_bky4p"), ExtResource("19_m6yr4")])
 startWeapons = [NodePath("WeaponContainer/Pistol"), NodePath("WeaponContainer/AssaultRifle"), NodePath("WeaponContainer/Shotgun"), NodePath("WeaponContainer/SniperRifle"), NodePath("WeaponContainer/RocketLauncher")]
+zoomValue = 80.0
 shoot_action = "shoot"
 reload_action = "reload"
 weapon_wheel_up_action = "weaponWheelUp"
@@ -1447,10 +1448,10 @@ unique_name_in_owner = true
 script = ExtResource("96_j45p8")
 debug_draw_bullet_arc = true
 debug_bullet_arc_duration = 10.0
-hitscan_bend_rate = Vector3(0, 20, -0.01)
-helix_radius = 0.7
-helix_turns_per_meter = 0.02
-helix_phase_offset = 0.12
+hitscan_bullet_gravity = 5.0
+hitscan_bend_rate = Vector3(0, 0, 0)
+helix_radius = 1.4
+helix_turns_per_meter = 0.01
 
 [node name="ReloadManager" type="Node3D" parent="CameraHolder/CameraRecoilHolder/Camera/WeaponManager"]
 unique_name_in_owner = true

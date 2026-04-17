@@ -1,0 +1,219 @@
+[gd_scene load_steps=16 format=3 uid="uid://d0t85e6npo244"]
+
+[ext_resource type="PackedScene" path="res://Thuster.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/Ray.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/PowerThruster.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/World.gd" id="4"]
+[ext_resource type="PackedScene" path="res://assets/HLabel.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/Controller.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/DevTools.gd" id="7"]
+
+[sub_resource type="CylinderShape3D" id="1"]
+height = 0.096196
+radius = 1.67631
+
+[sub_resource type="CylinderMesh" id="2"]
+
+[sub_resource type="BoxMesh" id="4"]
+
+[sub_resource type="BoxShape3D" id="5"]
+size = Vector3(0.601774, 2, 0.775124)
+
+[sub_resource type="BoxShape3D" id="6"]
+
+[sub_resource type="BoxMesh" id="7"]
+
+[sub_resource type="BoxShape3D" id="9"]
+size = Vector3(2, 1.6493, 39.986)
+
+[sub_resource type="BoxMesh" id="10"]
+
+[node name="World" type="Node3D"]
+script = ExtResource("4")
+
+[node name="Engines" type="Node3D" parent="."]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 3.88608, 8.17231, 0.512025)
+
+[node name="Thuster6" parent="Engines" instance=ExtResource("1")]
+can_sleep = false
+script = ExtResource("3")
+washplate_path = NodePath("CollisionShape2/Washplate")
+print_report = true
+
+[node name="CollisionShape2" type="CollisionShape3D" parent="Engines/Thuster6"]
+transform = Transform3D(1, 0.000228092, 0.000509556, -0.000227571, 1, -0.00102115, -0.000509789, 0.00102103, 0.999999, 0, -0.716317, 0)
+shape = SubResource("1")
+
+[node name="Washplate" type="MeshInstance3D" parent="Engines/Thuster6/CollisionShape2"]
+transform = Transform3D(1.62865, -0.00180627, -2.08092e-07, 0.000430698, 0.0545325, 0.00160613, 1.65502e-06, 0.00164537, 1.62865, 0, 1.90735e-06, 0)
+mesh = SubResource("2")
+
+[node name="Generic6DOFJoint" type="Generic6DOFJoint3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.44752, 0)
+linear_motor_y/target_velocity = 12.0
+linear_motor_z/target_velocity = 100.0
+angular_limit_x/upper_angle = 55.2
+angular_limit_x/lower_angle = -55.2
+angular_limit_x/restitution = 0.22
+angular_limit_x/damping = 1.97
+angular_limit_y/enabled = false
+angular_limit_z/enabled = false
+angular_spring_x/stiffness = 20.0
+angular_spring_x/damping = 1.0
+angular_spring_y/stiffness = 50.0
+angular_spring_z/stiffness = 50.0
+
+[node name="RayCast" type="RayCast3D" parent="Engines/Generic6DOFJoint"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.44752, 0)
+script = ExtResource("2")
+
+[node name="Arm" type="RigidBody3D" parent="Engines"]
+transform = Transform3D(1, -4.39806e-08, -4.34405e-08, 4.37114e-08, 0.999981, -0.00617846, 4.37114e-08, 0.00617846, 0.999981, -0.255526, 6.08613, -0.0593538)
+axis_lock_linear_x = true
+axis_lock_linear_y = true
+axis_lock_linear_z = true
+can_sleep = false
+
+[node name="MeshInstance" type="MeshInstance3D" parent="Engines/Arm"]
+transform = Transform3D(0.289519, 0, 0, 0, 1.57007, 0, 0, 0, 0.221711, 0.252067, -1.65635, 0)
+mesh = SubResource("4")
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Engines/Arm"]
+transform = Transform3D(1, -2.98023e-08, 0, 0, 1.70522, 0, 0, 0, 1, 0.252067, -1.65635, 0)
+shape = SubResource("5")
+
+[node name="Rig" type="Node3D" parent="."]
+
+[node name="Floor" type="RigidBody3D" parent="Rig"]
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/Floor"]
+transform = Transform3D(30, 0, 0, 0, 0.5, 0, 0, 0, 30, 0, 0, 0)
+shape = SubResource("6")
+
+[node name="CollisionShape2" type="MeshInstance3D" parent="Rig/Floor"]
+transform = Transform3D(30, 0, 0, 0, 0.5, 0, 0, 0, 20, 0, 0, 0)
+mesh = SubResource("7")
+
+[node name="RigidBody" type="RigidBody3D" parent="Rig"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.7568, 2.3319, 0)
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/RigidBody"]
+shape = SubResource("9")
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Rig/RigidBody/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0)
+mesh = SubResource("10")
+
+[node name="RigidBody2" type="RigidBody3D" parent="Rig"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.1341, 1.88243, 0)
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/RigidBody2"]
+shape = SubResource("9")
+
+[node name="MeshInstance" type="MeshInstance3D" parent="Rig/RigidBody2/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, 0, 0, 0)
+mesh = SubResource("10")
+
+[node name="RigidBody3" type="RigidBody3D" parent="Rig"]
+transform = Transform3D(-1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 2.3319, -18.273)
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/RigidBody3"]
+shape = SubResource("9")
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Rig/RigidBody3/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0)
+mesh = SubResource("10")
+
+[node name="RigidBody4" type="RigidBody3D" parent="Rig"]
+transform = Transform3D(-1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 2.3319, 19.1105)
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/RigidBody4"]
+shape = SubResource("9")
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Rig/RigidBody4/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0)
+mesh = SubResource("10")
+
+[node name="Spatial" type="Node3D" parent="Rig"]
+
+[node name="RigidBody5" type="RigidBody3D" parent="Rig/Spatial"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.7568, 5.2187, 0)
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/Spatial/RigidBody5"]
+shape = SubResource("9")
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Rig/Spatial/RigidBody5/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0)
+mesh = SubResource("10")
+
+[node name="RigidBody6" type="RigidBody3D" parent="Rig/Spatial"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.1341, 4.76923, 0)
+can_sleep = false
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/Spatial/RigidBody6"]
+shape = SubResource("9")
+
+[node name="MeshInstance" type="MeshInstance3D" parent="Rig/Spatial/RigidBody6/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, 0, 0, 0)
+mesh = SubResource("10")
+
+[node name="RigidBody7" type="RigidBody3D" parent="Rig/Spatial"]
+transform = Transform3D(-1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 5.2187, -18.273)
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/Spatial/RigidBody7"]
+shape = SubResource("9")
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Rig/Spatial/RigidBody7/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0)
+mesh = SubResource("10")
+
+[node name="RigidBody8" type="RigidBody3D" parent="Rig/Spatial"]
+transform = Transform3D(-1.62921e-07, 0, 1, 0, 1, 0, -1, 0, -1.62921e-07, 1.33207, 5.2187, 19.1105)
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/Spatial/RigidBody8"]
+shape = SubResource("9")
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Rig/Spatial/RigidBody8/CollisionShape"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 19.9866, -0.102509, 0, 0)
+mesh = SubResource("10")
+
+[node name="SpotLight" type="SpotLight3D" parent="Rig"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 23.3142, 0)
+light_color = Color(0.992157, 0.992157, 0.235294, 1)
+shadow_enabled = true
+spot_range = 38.4379
+spot_angle = 50.5112
+
+[node name="DevTools" type="Node3D" parent="."]
+script = ExtResource("7")
+
+[node name="VLabelStack" type="VBoxContainer" parent="DevTools"]
+
+[node name="HLabel" parent="DevTools/VLabelStack" instance=ExtResource("5")]
+layout_mode = 2
+margin_top = 0.0
+margin_right = 114.0
+margin_bottom = 14.0
+
+[node name="HLabelStack" type="HBoxContainer" parent="DevTools"]
+
+[node name="Label" type="Label" parent="DevTools/HLabelStack"]
+visible = false
+layout_mode = 2
+text = "Label #1"
+
+[node name="Label2" type="Label" parent="DevTools/HLabelStack"]
+visible = false
+layout_mode = 2
+text = "Label #1"
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.971652, 0.236414, 0, -0.236414, 0.971652, 0, 20.0847, 35.4233)
+current = true
+
+[node name="Controller" type="Node3D" parent="."]
+script = ExtResource("6")
+node = NodePath("../Engines/Thuster6")

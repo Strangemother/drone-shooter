@@ -1,0 +1,38 @@
+[gd_scene load_steps=5 format=3 uid="uid://de12os8gefuds"]
+
+[ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="1_1xc08"]
+[ext_resource type="Script" uid="uid://di646j57yf0bh" path="res://addons/Targets/Scripts/DroneScript.gd" id="1_b08s0"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
+size = Vector3(1, 0.638794, 1.46582)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_b08s0"]
+radius = 0.306051
+
+[node name="DroneScene" type="RigidBody3D"]
+mass = 15.0
+can_sleep = false
+script = ExtResource("1_b08s0")
+anti_gravity = 0.0
+
+[node name="drone_costum" parent="." instance=ExtResource("1_1xc08")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.317, 0)
+shape = SubResource("BoxShape3D_b08s0")
+
+[node name="MotorCollisionShape1" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.09302, 0.336823, 0.660195)
+shape = SubResource("SphereShape3D_b08s0")
+
+[node name="MotorCollisionShape2" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.09302, 0.233451, -0.65496)
+shape = SubResource("SphereShape3D_b08s0")
+
+[node name="MotorCollisionShape3" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.08888, 0.233451, -0.656779)
+shape = SubResource("SphereShape3D_b08s0")
+
+[node name="MotorCollisionShape4" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.07973, 0.233451, 0.663817)
+shape = SubResource("SphereShape3D_b08s0")

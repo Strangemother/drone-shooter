@@ -1,0 +1,260 @@
+[gd_scene load_steps=27 format=2]
+
+[ext_resource path="res://RayCast.gd" type="Script" id=1]
+[ext_resource path="res://scripts/RayCastThruster.gd" type="Script" id=2]
+
+[sub_resource type="CubeMesh" id=1]
+
+[sub_resource type="SpatialMaterial" id=2]
+albedo_color = Color( 0, 0.87451, 0.443137, 1 )
+
+[sub_resource type="SphereMesh" id=3]
+
+[sub_resource type="SpatialMaterial" id=4]
+flags_transparent = true
+albedo_color = Color( 0.176471, 0.482353, 0.839216, 0.8 )
+
+[sub_resource type="ConvexPolygonShape" id=5]
+points = PoolVector3Array( -1, 1, 1, 1, 1, -1, 1, 1, 1, -1, 1, -1, -1, -1, 1, 1, -1, -1, 1, -1, 1, -1, -1, -1, 1, 1, 1, -1, 1, -1, 1, 1, -1, -1, 1, 1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1, -1, 1, 1, 1, 1, -1, -1, 1, -1, 1, 1, 1, -1, 1, 1, 1, -1, -1, -1, -1, -1, 1, -1, 1, -1, -1 )
+
+[sub_resource type="Animation" id=6]
+length = 11.0
+loop = true
+tracks/0/type = "value"
+tracks/0/path = NodePath("MeshInstance2:translation")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0, 1.2, 2.5, 3.7, 5, 6.9, 7.9, 8.9 ),
+"transitions": PoolRealArray( 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 0,
+"values": [ Vector3( -1.70319, 3.51671, 0 ), Vector3( -0.100942, 3.51671, -1.59691 ), Vector3( 1.82932, 0.654552, 0 ), Vector3( 0.181807, 3.51671, 1.66617 ), Vector3( -1.70319, 3.51671, 0 ), Vector3( -2.60664, 1.28657, 0.00706936 ), Vector3( -2.31856, 0.572056, 1.65353 ), Vector3( -0.868864, 0.184923, -2.39432 ) ]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("MeshInstance2:rotation_degrees")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/keys = {
+"times": PoolRealArray( 0, 1.2, 2.5, 3.7, 5, 6.9, 7.9, 8.9 ),
+"transitions": PoolRealArray( 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 0,
+"values": [ Vector3( 0, 0, 29.22 ), Vector3( -32.331, 1.26018e-07, 3.84282 ), Vector3( 0, 0, -93.898 ), Vector3( 30.555, 8.98777e-09, -0.635502 ), Vector3( 0, 0, 29.22 ), Vector3( 0.693184, -1.64611e-08, 75.85 ), Vector3( 6.30799, 46.5872, 86.7639 ), Vector3( -11.7617, -84.7154, 87.7195 ) ]
+}
+
+[sub_resource type="SpatialMaterial" id=7]
+albedo_color = Color( 0.498039, 0.490196, 0.490196, 1 )
+
+[sub_resource type="CubeMesh" id=8]
+
+[sub_resource type="ConcavePolygonShape" id=9]
+data = PoolVector3Array( -1, 1, 1, 1, 1, 1, -1, -1, 1, 1, 1, 1, 1, -1, 1, -1, -1, 1, 1, 1, -1, -1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, 1, 1, 1, 1, 1, -1, 1, -1, 1, 1, 1, -1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1, 1, 1, -1, -1, -1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, 1, 1, -1, 1, 1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1, 1, -1, -1, -1, 1, 1, -1, 1, -1, -1, -1, 1, -1, 1, 1, -1, -1, -1, -1, -1 )
+
+[sub_resource type="CubeMesh" id=10]
+
+[sub_resource type="SpatialMaterial" id=11]
+albedo_color = Color( 0.121569, 0.552941, 0.443137, 1 )
+metallic = 0.65
+metallic_specular = 0.83
+
+[sub_resource type="BoxShape" id=12]
+
+[sub_resource type="SpatialMaterial" id=13]
+albedo_color = Color( 0.0352941, 0.729412, 0.0941176, 1 )
+emission_enabled = true
+emission = Color( 0.215686, 1, 0.337255, 1 )
+emission_energy = 3.49
+emission_operator = 0
+emission_on_uv2 = false
+
+[sub_resource type="CubeMesh" id=14]
+material = SubResource( 13 )
+size = Vector3( 0.1, 0.2, 0.1 )
+
+[sub_resource type="CapsuleMesh" id=15]
+
+[sub_resource type="SpatialMaterial" id=16]
+metallic = 0.35
+metallic_specular = 0.62
+
+[sub_resource type="SphereMesh" id=17]
+
+[sub_resource type="SpatialMaterial" id=18]
+albedo_color = Color( 0.94902, 0.101961, 0.101961, 1 )
+
+[sub_resource type="CubeMesh" id=19]
+
+[sub_resource type="CylinderShape" id=20]
+radius = 1.66213
+height = 0.197569
+
+[sub_resource type="CylinderMesh" id=21]
+
+[sub_resource type="SpatialMaterial" id=22]
+albedo_color = Color( 0.337255, 0.505882, 0.862745, 1 )
+
+[sub_resource type="StyleBoxFlat" id=23]
+bg_color = Color( 0.0431373, 0.0431373, 0.0431373, 1 )
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+expand_margin_left = 5.0
+expand_margin_right = 5.0
+expand_margin_top = 3.0
+expand_margin_bottom = 3.0
+anti_aliasing = false
+
+[sub_resource type="StyleBoxFlat" id=24]
+bg_color = Color( 0.0431373, 0.0431373, 0.0431373, 1 )
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[node name="Spatial" type="Spatial"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.91289, 0 )
+
+[node name="Camera" type="Camera" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.54324, 11.0203 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="."]
+transform = Transform( 0.0233204, -0.479763, 0.138864, 0.499313, 0.0190718, -0.0179618, 0.0119381, 0.139511, 0.479994, -1.92336, 0.419659, 0.730203 )
+mesh = SubResource( 1 )
+material/0 = null
+
+[node name="RayCast" type="RayCast" parent="MeshInstance2"]
+transform = Transform( 1, 5.58794e-08, 0, 5.40167e-08, 1, -5.96046e-08, 0, -2.98023e-08, 1, -3.57628e-07, -0.90233, 0.0265781 )
+enabled = true
+cast_to = Vector3( 0, -10, 0 )
+collision_mask = 2147483649
+collide_with_areas = true
+script = ExtResource( 1 )
+
+[node name="RayIndicator" type="MeshInstance" parent="MeshInstance2/RayCast"]
+transform = Transform( 0.499091, 0.0234306, 0.0189436, -0.0246762, 0.498241, 0.0338679, -0.0172899, -0.0347412, 0.498492, -0.242895, -4.79143, -0.224131 )
+material_override = SubResource( 2 )
+mesh = SubResource( 3 )
+material/0 = null
+
+[node name="RigidBody" type="RigidBody" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.382414, 0.763617, 0 )
+can_sleep = false
+
+[node name="MeshInstance" type="MeshInstance" parent="RigidBody"]
+mesh = SubResource( 1 )
+material/0 = SubResource( 4 )
+
+[node name="CollisionShape" type="CollisionShape" parent="RigidBody"]
+shape = SubResource( 5 )
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+"anims/New Anim" = SubResource( 6 )
+
+[node name="MeshInstance" type="MeshInstance" parent="."]
+transform = Transform( 5, 0, 0, 0, 0.2, 0, 0, 0, 5, 0, -1.04435, 0 )
+material_override = SubResource( 7 )
+mesh = SubResource( 8 )
+material/0 = null
+
+[node name="StaticBody" type="StaticBody" parent="MeshInstance"]
+
+[node name="CollisionShape" type="CollisionShape" parent="MeshInstance/StaticBody"]
+shape = SubResource( 9 )
+
+[node name="Thuster" type="RigidBody" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.523701, 5.60627, -0.180793 )
+can_sleep = false
+script = ExtResource( 2 )
+thruster_strength = 16.0
+attached = true
+
+[node name="MeshInstance" type="MeshInstance" parent="Thuster"]
+mesh = SubResource( 10 )
+material/0 = SubResource( 11 )
+
+[node name="CollisionShape" type="CollisionShape" parent="Thuster"]
+shape = SubResource( 12 )
+
+[node name="CPUParticles" type="CPUParticles" parent="Thuster"]
+transform = Transform( 0.999963, 0.00862753, -6.91124e-05, -0.00862756, 0.999963, -0.000444624, 6.52745e-05, 0.000445204, 1, 0, -0.995061, 0 )
+amount = 30
+lifetime = 1.43
+speed_scale = 0.89
+lifetime_randomness = 0.28
+fract_delta = false
+local_coords = false
+mesh = SubResource( 14 )
+emission_shape = 2
+emission_box_extents = Vector3( 1, 0.1, 1 )
+direction = Vector3( 0, -0.023, 0 )
+gravity = Vector3( 0, -0.019, 0 )
+angle = 91.8
+angle_random = 0.87
+scale_amount = 0.45
+scale_amount_random = 0.26
+hue_variation = 0.7
+
+[node name="MeshInstance2" type="MeshInstance" parent="Thuster"]
+transform = Transform( 1, 0, 0, 0, -3.15711e-08, -0.722262, 0, 1, -4.37114e-08, 0, 0.702812, 0 )
+mesh = SubResource( 15 )
+material/0 = SubResource( 16 )
+
+[node name="RayCast" type="RayCast" parent="Thuster"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0124874, -0.446106, -0.18991 )
+enabled = true
+cast_to = Vector3( 0, -20, 0 )
+collide_with_areas = true
+script = ExtResource( 1 )
+distance = 10.0
+
+[node name="RayIndicator" type="MeshInstance" parent="Thuster/RayCast"]
+transform = Transform( 0.206189, 0, 0, 0, -9.0128e-09, -0.206189, 0, 0.206189, -9.0128e-09, 0, -4.03951, -1.27286e-07 )
+mesh = SubResource( 17 )
+material/0 = SubResource( 18 )
+
+[node name="PressureIndicator" type="MeshInstance" parent="Thuster/RayCast"]
+transform = Transform( 1, 0, 0, 0, -1.62921e-07, -0.02, 0, 1, -3.25841e-09, 0, 3.08526, 0 )
+mesh = SubResource( 19 )
+material/0 = null
+
+[node name="WashplateCollision" type="CollisionShape" parent="Thuster"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.08509, 0 )
+visible = false
+shape = SubResource( 20 )
+disabled = true
+
+[node name="xWashplate" type="MeshInstance" parent="Thuster/WashplateCollision"]
+transform = Transform( 1.60691, 0, 0, 0, 0.0869768, 0, 0, 0, 1.60691, 0, 0, 0 )
+mesh = SubResource( 21 )
+material/0 = SubResource( 22 )
+
+[node name="CanvasLayer" type="CanvasLayer" parent="Thuster"]
+
+[node name="Label" type="Label" parent="Thuster/CanvasLayer"]
+margin_right = 44.0
+margin_bottom = 14.0
+custom_styles/normal = SubResource( 23 )
+text = "poluop"
+align = 1
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Panel" type="Panel" parent="Thuster/CanvasLayer"]
+visible = false
+anchor_right = 0.0687656
+anchor_bottom = 0.0333333
+margin_right = -0.416008
+margin_bottom = 9.53674e-07
+grow_horizontal = 2
+grow_vertical = 2
+rect_min_size = Vector2( 50, 15 )
+custom_styles/panel = SubResource( 24 )
+__meta__ = {
+"_edit_use_anchors_": true
+}

@@ -1,0 +1,324 @@
+[gd_scene load_steps=21 format=3 uid="uid://cwwfhwaxqiwv8"]
+
+[ext_resource type="PackedScene" path="res://Thuster.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/Ray.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/PowerThruster.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/World.gd" id="4"]
+[ext_resource type="PackedScene" path="res://assets/DevTools.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/Controller.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/Engines.gd" id="8"]
+
+[sub_resource type="CylinderShape3D" id="1"]
+height = 0.096196
+radius = 1.67631
+
+[sub_resource type="CylinderMesh" id="2"]
+
+[sub_resource type="BoxMesh" id="4"]
+
+[sub_resource type="BoxShape3D" id="6"]
+
+[sub_resource type="StandardMaterial3D" id="7"]
+albedo_color = Color(0.0352941, 0.729412, 0.0941176, 1)
+emission_enabled = true
+emission = Color(0.215686, 1, 0.337255, 1)
+emission_energy_multiplier = 3.49
+
+[sub_resource type="BoxMesh" id="8"]
+material = SubResource("7")
+size = Vector3(0.1, 0.2, 0.1)
+
+[sub_resource type="CapsuleMesh" id="9"]
+
+[sub_resource type="BoxMesh" id="12"]
+
+[sub_resource type="BoxShape3D" id="13"]
+size = Vector3(0.601774, 2, 0.775124)
+
+[sub_resource type="PrismMesh" id="14"]
+
+[sub_resource type="SphereMesh" id="15"]
+
+[sub_resource type="BoxShape3D" id="17"]
+
+[sub_resource type="BoxMesh" id="18"]
+
+[node name="World" type="Node3D"]
+script = ExtResource("4")
+
+[node name="Thuster9" parent="." instance=ExtResource("1")]
+transform = Transform3D(-4.37114e-08, 0, 0.999999, 0, 1, 0, -1, 0, -4.37114e-08, 16.3707, 8.17231, -0.107975)
+can_sleep = false
+script = ExtResource("3")
+washplate_path = NodePath("CollisionShape2/Washplate")
+power_axis = 6
+
+[node name="CollisionShape2" type="CollisionShape3D" parent="Thuster9"]
+transform = Transform3D(1, 0.000228092, 0.000509556, -0.000227571, 1, -0.00102115, -0.000509789, 0.00102103, 0.999999, 0, -0.716317, 0)
+shape = SubResource("1")
+
+[node name="Washplate" type="MeshInstance3D" parent="Thuster9/CollisionShape2"]
+transform = Transform3D(1.62865, -0.00180627, -2.08092e-07, 0.000430698, 0.0545325, 0.00160613, 1.65502e-06, 0.00164537, 1.62865, 0, 1.90735e-06, 0)
+mesh = SubResource("2")
+
+[node name="RayCast" type="RayCast3D" parent="Thuster9"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+script = ExtResource("2")
+
+[node name="Engines" type="Node3D" parent="."]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -3.72211, 8.172, -3.24502)
+script = ExtResource("8")
+
+[node name="BackRight" type="RigidBody3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.999999, 4.50416, 2, -4.52614)
+can_sleep = false
+script = ExtResource("3")
+washplate_path = NodePath("../BackRight/CollisionShape2/Washplate")
+
+[node name="MeshInstance" type="MeshInstance3D" parent="Engines/BackRight"]
+mesh = SubResource("4")
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Engines/BackRight"]
+shape = SubResource("6")
+
+[node name="CPUParticles" type="CPUParticles3D" parent="Engines/BackRight"]
+transform = Transform3D(0.999963, 0.00862753, -6.91124e-05, -0.00862756, 0.999963, -0.000444624, 6.52745e-05, 0.000445204, 1, 0, -0.995061, 0)
+amount = 30
+lifetime = 1.43
+speed_scale = 0.89
+lifetime_randomness = 0.28
+fract_delta = false
+mesh = SubResource("8")
+emission_shape = 2
+emission_sphere_radius = 1.0
+direction = Vector3(0, -0.023, 0)
+gravity = Vector3(0, -0.019, 0)
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Engines/BackRight"]
+transform = Transform3D(1, 0, 0, 0, -3.15711e-08, -0.722262, 0, 1, -4.37114e-08, 0, 0.702812, 0)
+mesh = SubResource("9")
+
+[node name="CollisionShape2" type="CollisionShape3D" parent="Engines/BackRight"]
+transform = Transform3D(1, 0.000228092, 0.000509556, -0.000227571, 1, -0.00102115, -0.000509789, 0.00102103, 0.999999, 0, -0.716317, 0)
+shape = SubResource("1")
+
+[node name="Washplate" type="MeshInstance3D" parent="Engines/BackRight/CollisionShape2"]
+transform = Transform3D(1.62865, -0.00180627, -2.08092e-07, 0.000430698, 0.0545325, 0.00160613, 1.65502e-06, 0.00164537, 1.62865, 0, 1.90735e-06, 0)
+mesh = SubResource("2")
+
+[node name="RayCast" type="RayCast3D" parent="Engines/BackRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+script = ExtResource("2")
+
+[node name="Blue" parent="Engines" instance=ExtResource("1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.999999, 4.50416, 2, 1.47386)
+can_sleep = false
+script = ExtResource("3")
+washplate_path = NodePath("../Blue/CollisionShape2/Washplate")
+
+[node name="CollisionShape2" type="CollisionShape3D" parent="Engines/Blue"]
+transform = Transform3D(1, 0.000228092, 0.000509556, -0.000227571, 1, -0.00102115, -0.000509789, 0.00102103, 0.999999, 0, -0.716317, 0)
+shape = SubResource("1")
+
+[node name="Washplate" type="MeshInstance3D" parent="Engines/Blue/CollisionShape2"]
+transform = Transform3D(1.62865, -0.00180627, -2.08092e-07, 0.000430698, 0.0545325, 0.00160613, 1.65502e-06, 0.00164537, 1.62865, 0, 1.90735e-06, 0)
+mesh = SubResource("2")
+
+[node name="RayCast" type="RayCast3D" parent="Engines/Blue"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+script = ExtResource("2")
+
+[node name="FrontRight" type="RigidBody3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.49584, 2, -4.52614)
+can_sleep = false
+script = ExtResource("3")
+washplate_path = NodePath("CollisionShape2/Washplate")
+cell_netwons = 23
+
+[node name="MeshInstance" type="MeshInstance3D" parent="Engines/FrontRight"]
+mesh = SubResource("4")
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Engines/FrontRight"]
+shape = SubResource("6")
+
+[node name="CPUParticles" type="CPUParticles3D" parent="Engines/FrontRight"]
+transform = Transform3D(0.999963, 0.00862753, -6.91124e-05, -0.00862756, 0.999963, -0.000444624, 6.52745e-05, 0.000445204, 1, 0, -0.995061, 0)
+amount = 30
+lifetime = 1.43
+speed_scale = 0.89
+lifetime_randomness = 0.28
+fract_delta = false
+mesh = SubResource("8")
+emission_shape = 2
+emission_sphere_radius = 1.0
+direction = Vector3(0, -0.023, 0)
+gravity = Vector3(0, -0.019, 0)
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Engines/FrontRight"]
+transform = Transform3D(1, 0, 0, 0, -3.15711e-08, -0.722262, 0, 1, -4.37114e-08, 0, 0.702812, 0)
+mesh = SubResource("9")
+
+[node name="CollisionShape2" type="CollisionShape3D" parent="Engines/FrontRight"]
+transform = Transform3D(1, 0.000228092, 0.000509556, -0.000227571, 1, -0.00102115, -0.000509789, 0.00102103, 0.999999, 0, -0.716317, 0)
+shape = SubResource("1")
+
+[node name="Washplate" type="MeshInstance3D" parent="Engines/FrontRight/CollisionShape2"]
+transform = Transform3D(1.62865, -0.00180627, -2.08092e-07, 0.000430698, 0.0545325, 0.00160613, 1.65502e-06, 0.00164537, 1.62865, 0, 1.90735e-06, 0)
+mesh = SubResource("2")
+
+[node name="RayCast" type="RayCast3D" parent="Engines/FrontRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+script = ExtResource("2")
+
+[node name="Black" type="RigidBody3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.49584, 2, 1.47386)
+can_sleep = false
+script = ExtResource("3")
+washplate_path = NodePath("../Black/CollisionShape2/Washplate")
+
+[node name="MeshInstance" type="MeshInstance3D" parent="Engines/Black"]
+mesh = SubResource("4")
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Engines/Black"]
+shape = SubResource("6")
+
+[node name="CPUParticles" type="CPUParticles3D" parent="Engines/Black"]
+transform = Transform3D(0.999963, 0.00862753, -6.91124e-05, -0.00862756, 0.999963, -0.000444624, 6.52745e-05, 0.000445204, 1, 0, -0.995061, 0)
+amount = 30
+lifetime = 1.43
+speed_scale = 0.89
+lifetime_randomness = 0.28
+fract_delta = false
+mesh = SubResource("8")
+emission_shape = 2
+emission_sphere_radius = 1.0
+direction = Vector3(0, -0.023, 0)
+gravity = Vector3(0, -0.019, 0)
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="Engines/Black"]
+transform = Transform3D(1, 0, 0, 0, -3.15711e-08, -0.722262, 0, 1, -4.37114e-08, 0, 0.702812, 0)
+mesh = SubResource("9")
+
+[node name="CollisionShape2" type="CollisionShape3D" parent="Engines/Black"]
+transform = Transform3D(1, 0.000228092, 0.000509556, -0.000227571, 1, -0.00102115, -0.000509789, 0.00102103, 0.999999, 0, -0.716317, 0)
+shape = SubResource("1")
+
+[node name="Washplate" type="MeshInstance3D" parent="Engines/Black/CollisionShape2"]
+transform = Transform3D(1.62865, -0.00180627, -2.08092e-07, 0.000430698, 0.0545325, 0.00160613, 1.65502e-06, 0.00164537, 1.62865, 0, 1.90735e-06, 0)
+mesh = SubResource("2")
+
+[node name="RayCast" type="RayCast3D" parent="Engines/Black"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+script = ExtResource("2")
+
+[node name="BlueJoint" type="Generic6DOFJoint3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.50416, 4, 0.473857)
+linear_limit_y/enabled = false
+linear_motor_y/target_velocity = 12.0
+linear_motor_z/target_velocity = 100.0
+linear_spring_y/enabled = true
+linear_spring_y/stiffness = 30.0
+linear_spring_y/damping = 1.0
+angular_limit_x/upper_angle = 5.0
+angular_limit_x/lower_angle = -90.0
+angular_limit_x/restitution = 0.01
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 100.0
+angular_spring_x/damping = 3.0
+angular_spring_y/stiffness = 50.0
+angular_spring_z/stiffness = 50.0
+
+[node name="BackRightJoint" type="Generic6DOFJoint3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 4.41241e-18, 1, 0, 0, 0, 1, 4.50416, 4, -3.52614)
+linear_limit_y/enabled = false
+linear_motor_y/target_velocity = 12.0
+linear_motor_z/enabled = true
+linear_motor_z/target_velocity = 100.0
+linear_spring_y/enabled = true
+linear_spring_y/stiffness = 30.0
+linear_spring_y/damping = 1.0
+angular_limit_x/upper_angle = 90.0
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 100.0
+angular_spring_x/damping = 1.0
+angular_spring_y/stiffness = 50.0
+angular_spring_z/stiffness = 50.0
+
+[node name="FrontRightJoint" type="Generic6DOFJoint3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 4.41241e-18, 1, 0, 0, 0, 1, -0.495842, 4, -3.52614)
+linear_limit_y/enabled = false
+linear_motor_y/target_velocity = 12.0
+linear_motor_z/target_velocity = 100.0
+linear_spring_y/enabled = true
+linear_spring_y/stiffness = 30.0
+linear_spring_y/damping = 1.0
+angular_limit_x/upper_angle = 90.0
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 100.0
+angular_spring_x/damping = 1.0
+angular_spring_y/stiffness = 50.0
+angular_spring_z/stiffness = 50.0
+
+[node name="BlackJoint" type="Generic6DOFJoint3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 4.41241e-18, 1, 0, 0, 0, 1, -0.495842, 4, 0.473857)
+linear_limit_y/enabled = false
+linear_motor_y/target_velocity = 12.0
+linear_motor_z/target_velocity = 100.0
+linear_spring_y/enabled = true
+linear_spring_y/stiffness = 30.0
+linear_spring_y/damping = 1.0
+angular_limit_x/lower_angle = -90.0
+angular_spring_x/enabled = true
+angular_spring_x/stiffness = 100.0
+angular_spring_y/stiffness = 50.0
+angular_spring_z/stiffness = 50.0
+
+[node name="Arm" type="RigidBody3D" parent="Engines"]
+transform = Transform3D(1, 0, 0, 0, -1.62921e-07, 1, 0, -1, -1.62921e-07, 1.5, 4, -1.5)
+can_sleep = false
+
+[node name="Base" type="MeshInstance3D" parent="Engines/Arm"]
+transform = Transform3D(1.49495, -2.85739e-07, 2.49301e-10, -5.26901e-08, 1.57007, -1.08972e-17, 3.2555e-10, 9.31323e-10, 0.221711, 0.0103979, -0.130207, 7.62939e-06)
+mesh = SubResource("12")
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Engines/Arm"]
+transform = Transform3D(5.16356, -4.64222e-07, 1.12444e-09, -1.81992e-07, 1.70522, -4.91505e-17, 1.12445e-09, 7.45058e-09, 1, 0.0103979, -0.130207, 7.62939e-06)
+shape = SubResource("13")
+
+[node name="Nose" type="MeshInstance3D" parent="Engines/Arm"]
+transform = Transform3D(-4.37114e-08, -2.5, -4.37114e-08, -1.19209e-07, 1.09279e-07, -1, 1, -1.09278e-07, -1.19209e-07, -2.3328, 0.0261438, 0.398151)
+mesh = SubResource("14")
+
+[node name="COM" type="MeshInstance3D" parent="Engines/Arm"]
+transform = Transform3D(0.476711, 0, 0, 0, 0.476711, 1.48396e-22, 0, 1.48396e-22, 0.476711, 0, 0, 0)
+mesh = SubResource("15")
+
+[node name="Rig" type="Node3D" parent="."]
+
+[node name="Floor" type="RigidBody3D" parent="Rig"]
+transform = Transform3D(2.38872, 0, 0, 0, 1, 0, 0, 0, 2.38154, 0, 0, 0)
+
+[node name="CollisionShape" type="CollisionShape3D" parent="Rig/Floor"]
+transform = Transform3D(30, 0, 0, 0, 0.5, 0, 0, 0, 30, 0, 0, 0)
+shape = SubResource("17")
+
+[node name="CollisionShape2" type="MeshInstance3D" parent="Rig/Floor"]
+transform = Transform3D(30, 0, 0, 0, 0.5, 0, 0, 0, 20, 0, 0, 0)
+mesh = SubResource("18")
+
+[node name="SpotLight" type="SpotLight3D" parent="Rig"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 23.3142, 0)
+light_color = Color(0.992157, 0.992157, 0.235294, 1)
+shadow_enabled = true
+spot_range = 38.4379
+spot_angle = 50.5112
+
+[node name="DevTools" parent="." instance=ExtResource("5")]
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(-1, 2.0668e-08, -8.49446e-08, 0, 0.971652, 0.236414, 8.74228e-08, 0.236414, -0.971652, 0.196466, 20.0847, -32.6552)
+current = true
+
+[node name="Controller" type="Node3D" parent="."]
+script = ExtResource("6")
+node = NodePath("../Engines/Arm")

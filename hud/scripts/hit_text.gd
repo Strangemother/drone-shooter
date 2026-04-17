@@ -39,10 +39,10 @@ func setup(p_camera: Camera3D, p_world_point: Vector3, p_normal: Vector3, damage
 	update_label(0.0)
 	$Label.add_theme_color_override("default_color", Color.RED)
 
-func calculate_distance(world_point):
+func calculate_distance(lworld_point):
 	
 	#var camera : Camera3D = %Camera
-	var span = camera.global_position.distance_to(world_point)
+	var span = camera.global_position.distance_to(lworld_point)
 	return span
 
 func update_color() -> void:
