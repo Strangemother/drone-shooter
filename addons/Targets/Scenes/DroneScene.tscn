@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://de12os8gefuds"]
+[gd_scene load_steps=7 format=3 uid="uid://de12os8gefuds"]
 
 [ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="1_1xc08"]
 [ext_resource type="Script" uid="uid://di646j57yf0bh" path="res://addons/Targets/Scripts/DroneScript.gd" id="1_b08s0"]
 [ext_resource type="Script" uid="uid://bvn5my5mrcawh" path="res://addons/Targets/Scripts/DroneThrusterScript.gd" id="3_43b3x"]
+[ext_resource type="Script" uid="uid://nbd24g5jgtjw" path="res://addons/Targets/Scripts/DroneFlightController.gd" id="4_j5mmt"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
 size = Vector3(1, 0.638794, 1.46582)
@@ -27,25 +28,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
 max_force = 2.0
-throttle = 0.56
+throttle = 0.7
 
 [node name="MotorCollisionShape2" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
 max_force = 2.0
-throttle = 0.56
+throttle = 0.7
 
 [node name="MotorCollisionShape3" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
 max_force = 2.0
-throttle = 0.56
+throttle = 0.7
 
 [node name="MotorCollisionShape4" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_43b3x")
 max_force = 2.0
-throttle = 0.56
+throttle = 0.7
+
+[node name="FlightController" type="Node" parent="."]
+script = ExtResource("4_j5mmt")
