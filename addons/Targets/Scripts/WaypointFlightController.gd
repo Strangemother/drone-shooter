@@ -134,9 +134,10 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		wp_pitch_target = clampf(pitch_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
 
 		# Positive X error (target to the right) needs positive roll
-		# (tilt right).
+		# (tilt right).  _pid(0, x) output ∝ −x, so we negate the
+		# output to get the correct sign: +X error → +roll.
 		var roll_correction := _pid(
-			0.0, -error_world.x,
+			0.0, error_world.x,
 			pos_p, pos_i, pos_d, dt,
 			_pos_x_integral, _pos_x_prev_error
 		)
