@@ -390,14 +390,14 @@ mass = 1.2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.45764, 4.0878, 158.027)
 mass = 1.2
 
-[node name="HitableBox11" parent="ShootingRangeTargetManager" instance=ExtResource("8_2mjpe")]
-transform = Transform3D(0.751, 0, 0.660303, 0, 1, 0, -0.660303, 0, 0.751, -12.45, 7.00312, 170.101)
-mass = 1.2
-
 [node name="DroneScene" parent="ShootingRangeTargetManager" groups=["HitableObjects"] instance=ExtResource("10_0ldo7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65029, 8.24284, 133.434)
 gravity_scale = 1.0
 linear_velocity = Vector3(0, 1, 0)
+
+[node name="HitableBox11" parent="ShootingRangeTargetManager" instance=ExtResource("8_2mjpe")]
+transform = Transform3D(0.751, 0, 0.660303, 0, 1, 0, -0.660303, 0, 0.751, -12.45, 7.00312, 170.101)
+mass = 1.2
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_07h0i")]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -0.111524, 1.43224, 146.005)
