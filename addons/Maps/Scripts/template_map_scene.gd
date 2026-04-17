@@ -22,6 +22,10 @@ func _notification(what):
 func _input(event):
 	if event.as_text() == 'Escape':
 		get_tree().quit() # default behavior
+	if event.as_text() == 'P':
+		# Send all drones to a target node
+		get_tree().call_group("drones", "set_waypoint", self.get_node('./Waypoint'))
+
 
 
 func _unhandled_input(event: InputEvent) -> void:

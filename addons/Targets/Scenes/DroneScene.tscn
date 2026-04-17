@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="1_1xc08"]
 [ext_resource type="Script" uid="uid://di646j57yf0bh" path="res://addons/Targets/Scripts/DroneScript.gd" id="1_b08s0"]
 [ext_resource type="Script" uid="uid://bvn5my5mrcawh" path="res://addons/Targets/Scripts/DroneThrusterScript.gd" id="3_43b3x"]
-[ext_resource type="Script" uid="uid://b4gnkpu2gklei" path="res://addons/Targets/Scripts/StabilisedFlightController.gd" id="4_j5mmt"]
+[ext_resource type="Script" uid="uid://cyjlkwvfqxgsd" path="res://addons/Targets/Scripts/WaypointFlightController.gd" id="4_j5mmt"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
 size = Vector3(1, 0.638794, 1.46582)

@@ -35,7 +35,7 @@ var waypoint_target: Node3D = null
 @export_range(0.0, 2.0, 0.001) var pos_i: float = 0.01
 
 ## Derivative: damps approach speed to prevent overshoot.
-@export_range(0.0, 5.0, 0.001) var pos_d: float = 0.25
+@export_range(0.0, 5.0, 0.001) var pos_d: float = 0.325
 
 
 # ── limits ────────────────────────────────────────────────────────
