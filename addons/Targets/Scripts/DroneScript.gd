@@ -12,6 +12,7 @@ var flight_controller: DroneFlightController
 
 
 func _ready() -> void:
+	add_to_group("drones")
 	_collect_thrusters()
 	flight_controller = _find_flight_controller()
 	if flight_controller:
@@ -48,6 +49,20 @@ func _find_flight_controller() -> DroneFlightController:
 func reset_flight_controller() -> void:
 	if flight_controller and flight_controller.has_method("reset_state"):
 		flight_controller.reset_state()
+
+
+## Set a waypoint target on the flight controller (if it supports waypoints).
+## Call from anywhere:  get_tree().call_group("drones", "set_waypoint", some_node3d)
+func set_waypoint(target: Node3D) -> void:
+	if flight_controller and flight_controller.has_method("set_waypoint"):
+		flight_controller.set_waypoint(target)
+
+
+## Clear the current waypoint — the drone reverts to hover-in-place.
+## Call from anywhere:  get_tree().call_group("drones", "clear_waypoint")
+func clear_waypoint() -> void:
+	if flight_controller and flight_controller.has_method("clear_waypoint"):
+		flight_controller.clear_waypoint()
 
 func get_bullet_density() -> float:
 	return bullet_density
