@@ -53,3 +53,6 @@ throttle = 0.7
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_j5mmt")
+max_waypoint_tilt = 0.22
+max_tilt_angle = 0.38
+integral_limit = 0.23
