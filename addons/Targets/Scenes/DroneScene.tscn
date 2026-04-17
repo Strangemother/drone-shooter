@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://de12os8gefuds"]
+[gd_scene load_steps=6 format=3 uid="uid://de12os8gefuds"]
 
 [ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="1_1xc08"]
 [ext_resource type="Script" uid="uid://di646j57yf0bh" path="res://addons/Targets/Scripts/DroneScript.gd" id="1_b08s0"]
+[ext_resource type="Script" uid="uid://bvn5my5mrcawh" path="res://addons/Targets/Scripts/DroneThrusterScript.gd" id="3_43b3x"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
 size = Vector3(1, 0.638794, 1.46582)
@@ -10,10 +11,11 @@ size = Vector3(1, 0.638794, 1.46582)
 radius = 0.306051
 
 [node name="DroneScene" type="RigidBody3D"]
-mass = 15.0
+mass = 8.0
 can_sleep = false
 script = ExtResource("1_b08s0")
-anti_gravity = 0.0
+throttle_up_action = &"weaponWheelUp"
+throttle_down_action = &"weaponWheelDown"
 
 [node name="drone_costum" parent="." instance=ExtResource("1_1xc08")]
 
@@ -22,17 +24,25 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.317, 0)
 shape = SubResource("BoxShape3D_b08s0")
 
 [node name="MotorCollisionShape1" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.09302, 0.336823, 0.660195)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
+script = ExtResource("3_43b3x")
+max_force = 0.0
 
 [node name="MotorCollisionShape2" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.09302, 0.233451, -0.65496)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
+script = ExtResource("3_43b3x")
+max_force = 0.0
 
 [node name="MotorCollisionShape3" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.08888, 0.233451, -0.656779)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
+script = ExtResource("3_43b3x")
+max_force = 0.0
 
 [node name="MotorCollisionShape4" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.07973, 0.233451, 0.663817)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.333, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
+script = ExtResource("3_43b3x")
+max_force = 0.0
