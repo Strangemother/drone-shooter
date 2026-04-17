@@ -43,6 +43,12 @@ func _find_flight_controller() -> DroneFlightController:
 			return child
 	return null
 
+
+## Called after a position reset to clear any accumulated controller state.
+func reset_flight_controller() -> void:
+	if flight_controller and flight_controller.has_method("reset_state"):
+		flight_controller.reset_state()
+
 func get_bullet_density() -> float:
 	return bullet_density
 

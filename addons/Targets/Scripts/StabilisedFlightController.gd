@@ -79,6 +79,16 @@ var _alt_prev_error: float = 0.0
 var _target_altitude: float = NAN
 
 
+func reset_state() -> void:
+	_pitch_integral = 0.0
+	_pitch_prev_error = 0.0
+	_roll_integral = 0.0
+	_roll_prev_error = 0.0
+	_alt_integral = 0.0
+	_alt_prev_error = 0.0
+	_target_altitude = NAN
+
+
 func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var total_max := get_total_max_force(thrusters)
 	if total_max <= 0.0:

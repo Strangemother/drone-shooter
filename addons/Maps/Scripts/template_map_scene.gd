@@ -40,8 +40,18 @@ func reset_drone() -> void:
 	drone.linear_velocity = Vector3.ZERO
 	drone.angular_velocity = Vector3.ZERO
 
-	# Snap back to spawn position and orientation.
-	drone.global_transform = _drone_spawn_transform
+	# Teleport via PhysicsServer3D — setting global_transform directly on a
+	# RigidBody3D gets overwritten by the physics engine on the next tick.
+	PhysicsServer3D.body_set_state(
+		drone.get_rid(),
+		PhysicsServer3D.BODY_STATE_TRANSFORM,
+		_drone_spawn_transform
+	)
+
+	# Tell the flight controller to clear any accumulated PID / internal state
+	# so it doesn't fight the new position.
+	if drone.has_method("reset_flight_controller"):
+		drone.reset_flight_controller()
 
 
 func _get_drone() -> RigidBody3D:

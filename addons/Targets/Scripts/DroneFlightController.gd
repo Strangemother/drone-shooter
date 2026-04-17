@@ -24,6 +24,12 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	pass
 
 
+## Called after a position reset to clear accumulated internal state.
+## Override in subclasses that track state (e.g. PID integrals).
+func reset_state() -> void:
+	pass
+
+
 # ── shared helpers available to every controller ──────────────────
 
 func get_total_max_force(thrusters: Array[Node]) -> float:
