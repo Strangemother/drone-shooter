@@ -164,24 +164,22 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var final_pitch_target := clampf(wp_pitch_target + stick_pitch, -max_tilt_angle, max_tilt_angle)
 	var final_roll_target  := clampf(wp_roll_target + stick_roll, -max_tilt_angle, max_tilt_angle)
 
-	# ── PID: pitch attitude (derivative-on-measurement) ───────
-	var pitch_correction := _pid_dom(
-		final_pitch_target, current_pitch,
+	# ── PID: pitch attitude (D on body angular velocity) ──────
+	var pitch_correction := _pid_rate(
+		final_pitch_target, current_pitch, -omega_body.x,
 		pitch_p, pitch_i, pitch_d, dt,
-		_pitch_integral, _pitch_prev_angle
+		_pitch_integral
 	)
 	_pitch_integral = pitch_correction.y
-	_pitch_prev_angle = pitch_correction.z
 	var pitch_output: float = clampf(pitch_correction.x, -attitude_authority, attitude_authority)
 
-	# ── PID: roll attitude (derivative-on-measurement) ────────
-	var roll_correction := _pid_dom(
-		final_roll_target, current_roll,
+	# ── PID: roll attitude (D on body angular velocity) ───────
+	var roll_correction := _pid_rate(
+		final_roll_target, current_roll, omega_body.z,
 		roll_p, roll_i, roll_d, dt,
-		_roll_integral, _roll_prev_angle
+		_roll_integral
 	)
 	_roll_integral = roll_correction.y
-	_roll_prev_angle = roll_correction.z
 	var roll_output: float = clampf(roll_correction.x, -attitude_authority, attitude_authority)
 
 	# ── no yaw torque — let RigidBody3D.angular_damp handle residual spin ─
