@@ -9,7 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://d27xhk2ygjsbr" path="res://addons/Targets/Scenes/HitableBoxScene.tscn" id="7_wrhm4"]
 [ext_resource type="PackedScene" uid="uid://bwggrf7sbmkcv" path="res://addons/PlayerCharacter/Scenes/PlayerCharacterScene.tscn" id="8_ciufw"]
 [ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/Drone2Scene.tscn" id="9_dk501"]
-[ext_resource type="Script" uid="uid://c202iw4lq87yj" path="res://addons/Maps/Scripts/waypoint_path.gd" id="10_0rbnq"]
+[ext_resource type="Script" uid="uid://bccldnquvg0f7" path="res://addons/Maps/Scripts/waypoint_path_smooth.gd" id="10_0rbnq"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_atpwd"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -341,7 +341,7 @@ transform = Transform3D(0.751, 0, 0.660303, 0, 1, 0, -0.660303, 0, 0.751, -12.45
 mass = 1.2
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("8_ciufw")]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -0.111524, 1.43224, -24.995)
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -2.11152, 1.43224, -31.995)
 baseModelHeight = 1.8
 
 [node name="NamingConventionConverter" type="Node" parent="."]
@@ -357,8 +357,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 6, -36)
 mesh = SubResource("SphereMesh_0ldo7")
 
 [node name="WaypointPath" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 6, -72)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 6, -37)
 script = ExtResource("10_0rbnq")
+cruise_speed = 15.0
+lookahead_distance = 3.0
+max_lead_distance = 10.0
+arrival_handoff_distance = 3.0
+loop_mode = 1
 
 [node name="Waypoint0" type="Node3D" parent="WaypointPath"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 16)
@@ -367,13 +372,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 16)
 mesh = SubResource("SphereMesh_0ldo7")
 
 [node name="Waypoint1" type="Node3D" parent="WaypointPath"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 3, 5)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="WaypointPath/Waypoint1"]
 mesh = SubResource("SphereMesh_0ldo7")
 
 [node name="Waypoint2" type="Node3D" parent="WaypointPath"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -2, -1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -2, -17)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="WaypointPath/Waypoint2"]
 mesh = SubResource("SphereMesh_0ldo7")
