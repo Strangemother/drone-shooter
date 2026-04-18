@@ -350,8 +350,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 6, -55)
 gravity_scale = 1.0
 
 [node name="Waypoint" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 3, 125)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 6, -36)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Waypoint"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -171)
 mesh = SubResource("SphereMesh_0ldo7")

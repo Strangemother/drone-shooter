@@ -49,3 +49,7 @@ max_force = 5.0
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_40ta8")
+pos_p = 0.328
+pos_d = 0.305
+max_waypoint_tilt = 0.5
+invert_forward = true
