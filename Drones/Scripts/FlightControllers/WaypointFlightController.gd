@@ -30,9 +30,13 @@ var waypoint_target: Node3D = null
 
 ## Proportional: how aggressively the drone slows as it nears the
 ## waypoint.  Acts on the distance-to-go to derive a *target approach
-## velocity* (see `max_approach_speed`) — not directly on tilt.  Higher
-## values produce a later, harder brake.
-@export_range(0.0, 5.0, 0.001) var pos_p: float = 0.5
+## velocity* (see `max_approach_speed`) — not directly on tilt.
+##
+## Brake distance (where the drone begins decelerating) is
+## roughly `max_approach_speed / pos_p`.  With defaults:
+## 8 / 0.25 = 32 m.  Raise pos_p for a later, harder stop; lower it
+## for a more gradual, earlier approach.
+@export_range(0.0, 5.0, 0.001) var pos_p: float = 0.25
 
 ## Integral: small constant bias to counter wind or trim errors.
 @export_range(0.0, 2.0, 0.001) var pos_i: float = 0.0
@@ -48,7 +52,9 @@ var waypoint_target: Node3D = null
 ## Maximum speed (m/s) the drone will cruise toward the waypoint at.
 ## The target velocity ramps from 0 at the waypoint to this value
 ## outside a "brake distance" of roughly `max_approach_speed / pos_p`.
-@export_range(0.1, 50.0, 0.1) var max_approach_speed: float = 8.0
+## Keep modest — high speeds need a proportionally longer brake zone
+## and more pitch authority to stop in time.
+@export_range(0.1, 50.0, 0.1) var max_approach_speed: float = 6.0
 
 ## Maximum tilt angle the waypoint tracking can command (radians).
 ## Caps how hard the drone tilts to correct velocity errors.  ~0.35
@@ -80,11 +86,14 @@ var waypoint_target: Node3D = null
 ## Proportional gain for the yaw-to-waypoint loop (N·m per radian of
 ## heading error).  Default tuned for ~0.2 kg·m² body inertia with
 ## `angular_damp ≈ 3`.  Lower this if the drone over-rotates.
-@export_range(0.0, 10.0, 0.01) var yaw_p: float = 1.5
+@export_range(0.0, 10.0, 0.01) var yaw_p: float = 1.2
 
 ## Derivative gain on body-Y angular velocity — brakes rotation so
-## the drone settles on heading without oscillating.
-@export_range(0.0, 10.0, 0.01) var yaw_d: float = 0.4
+## the drone settles on heading without oscillating.  Large values
+## are safe here: body-Y inertia is small and over-damping just makes
+## the turn a little slower, whereas under-damping produces the
+## runaway-ring you see when a far waypoint is first engaged.
+@export_range(0.0, 10.0, 0.01) var yaw_d: float = 1.2
 
 ## Heading error (radians) below which the pitch command is allowed
 ## to reach full strength.  Outside this, pitch is faded toward zero
