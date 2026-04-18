@@ -63,28 +63,16 @@ class_name FlightStabilisedController
 @export_range(0.0, 1.0, 0.01) var integral_limit: float = 0.3
 
 
-# ── rate damping (inner loop) ─────────────────────────────────────
-# A cascaded rate loop runs on top of the angle loop: angle error
-# commands a desired angular rate, rate error commands a torque.
-# This damps all three body axes and is what makes yaw recoverable
-# even when the thruster geometry can't produce yaw torque via mixing.
+# ── yaw damping ───────────────────────────────────────────────────
+# Thruster force mixing handles pitch & roll through force differential.
+# It cannot produce yaw torque (all thrusters fire along body-UP), so
+# yaw is damped via a direct torque controller instead.
 
-## Converts angle error into a target angular rate (rad/s per rad).
-## Higher = snappier angle tracking but risks overshoot.
-@export_range(0.0, 20.0, 0.1) var angle_to_rate: float = 6.0
-
-## Max body rate the angle loop may command (rad/s).
-@export_range(0.0, 20.0, 0.1) var max_body_rate: float = 6.0
-
-## Rate loop proportional gain (torque per rad/s of rate error).
-## This is what produces the actual damping against spin.
-@export_range(0.0, 50.0, 0.1) var rate_p: float = 8.0
-
-## Rate loop derivative (damps rate-of-change of rate error).
-@export_range(0.0, 10.0, 0.01) var rate_d: float = 0.5
+## Torque per rad/s of yaw-rate error.  Higher = stiffer yaw hold.
+@export_range(0.0, 50.0, 0.1) var rate_p: float = 2.0
 
 ## Player yaw input command range (rad/s).
-@export_range(0.0, 10.0, 0.1) var max_yaw_rate: float = 3.0
+@export_range(0.0, 10.0, 0.1) var max_yaw_rate: float = 2.0
 
 
 # ── internal PID state ────────────────────────────────────────────
@@ -98,9 +86,6 @@ var _roll_prev_error: float = 0.0
 var _alt_integral: float = 0.0
 var _alt_prev_error: float = 0.0
 
-## Previous body-frame angular velocity — for rate-loop derivative.
-var _prev_rate_err: Vector3 = Vector3.ZERO
-
 ## Captured on first update — the altitude the drone should hold when
 ## the player gives no vertical input.
 var _target_altitude: float = NAN
@@ -113,7 +98,6 @@ func reset_state() -> void:
 	_roll_prev_error = 0.0
 	_alt_integral = 0.0
 	_alt_prev_error = 0.0
-	_prev_rate_err = Vector3.ZERO
 	_target_altitude = NAN
 
 
@@ -170,32 +154,17 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	_roll_prev_error = roll_correction.z
 	var roll_output: float = roll_correction.x
 
-	# ── inner rate loop: angle error → body-rate target → torque ─
-	# The angle PID above drives thruster mixing; the rate loop
-	# below applies a direct stabilising torque.  Together they form
-	# a proper cascaded controller that stays stable regardless of
-	# yaw orientation and also damps yaw spin (which thruster
-	# mixing alone cannot).
-	#
-	# Target body rates (rad/s) about body X (pitch), Y (yaw), Z (roll).
-	# Sign note: a positive "current_pitch" (nose-down tilt) is produced
-	# by a negative rotation about body-X, so the pitch rate target is
-	# negated here to agree with the body-X axis convention.
-	var pitch_err := target_pitch - current_pitch
-	var roll_err  := target_roll - current_roll
-	var target_omega := Vector3(
-		clampf(angle_to_rate * pitch_err, -max_body_rate, max_body_rate),
-		yaw_stick * max_yaw_rate,
-		clampf(angle_to_rate * roll_err, -max_body_rate, max_body_rate)
-	)
-
-	var rate_err := target_omega - omega_body
-	var rate_deriv := (rate_err - _prev_rate_err) / dt
-	_prev_rate_err = rate_err
-
-	# Body-frame stabilising torque, then rotate to world for apply_torque.
-	var torque_body := rate_p * rate_err + rate_d * rate_deriv
-	body.apply_torque(basis * torque_body)
+	# ── yaw damping via direct torque ────────────────────────────
+	# Thruster force mixing already produces pitch/roll torque through
+	# the force differential, so we do NOT add torque on those axes
+	# (the two would fight and can go unstable).  Yaw, however, cannot
+	# be produced by thrusters pointing along body-UP — so we damp it
+	# here with a simple rate controller: command a target yaw rate
+	# from player input, and apply torque proportional to the error.
+	var yaw_rate_target := yaw_stick * max_yaw_rate
+	var yaw_rate_error  := yaw_rate_target - omega_body.y
+	var yaw_torque_body := Vector3(0.0, rate_p * yaw_rate_error, 0.0)
+	body.apply_torque(basis * yaw_torque_body)
 
 	# ── collective: hover baseline + altitude hold PID ───────────
 	var collective := _hover_throttle(body, total_max)
