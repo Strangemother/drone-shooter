@@ -75,6 +75,32 @@ signal path_cancelled
 ## 1.0 = exaggerated loops.  See class docs.
 @export_range(0.0, 1.0, 0.01) var curve_tension: float = 0.5
 
+## If true, slow the virtual target through tight corners so the
+## drone doesn't barrel into them at full cruise.  Peeks ahead
+## along the curve, measures curvature (κ), and scales cruise as
+##
+##     effective_speed = cruise_speed / (1 + curvature_weight * κ)
+##
+## Disabled by default — most authored paths are fine without it,
+## and the effect is subtle.  Enable when a course has tight
+## turns that the drone visibly overshoots.
+@export var curvature_speed_limit: bool = false
+
+## How far ahead of the chase point (metres) to scan for upcoming
+## curvature.  Should cover roughly one brake distance — otherwise
+## the drone starts slowing too late to actually make the corner.
+@export_range(0.1, 50.0, 0.1) var curvature_preview_distance: float = 8.0
+
+## How aggressively curvature slows cruise.  Higher = stronger
+## braking.  Curvature κ is in units of 1/metres — a 10 m radius
+## corner is κ = 0.1, so weight = 10 halves the speed there.
+@export_range(0.0, 100.0, 0.1) var curvature_weight: float = 10.0
+
+## Minimum speed as a fraction of cruise.  Prevents the drone from
+## crawling or stopping outright at extreme curvature (e.g. a
+## near-180° bend).  0.2 = 20% of cruise floor.
+@export_range(0.05, 1.0, 0.01) var curvature_min_speed_fraction: float = 0.2
+
 ## End-of-path behaviour.
 enum LoopMode { NONE, LOOP, PING_PONG }
 @export var loop_mode: LoopMode = LoopMode.NONE
@@ -145,8 +171,18 @@ func _physics_process(delta: float) -> void:
 	# is built for.
 	_s_drone = _project_to_arc_length(drone.global_position, _s_drone, path_length)
 
-	# Advance the virtual target's arc-length.
-	_s_target += cruise_speed * delta
+	# Advance the virtual target's arc-length.  When curvature
+	# limiting is on, `effective_speed` is scaled down by the max
+	# curvature in the preview window — i.e. we slow *in advance*
+	# of a corner, not while in it, so the drone actually makes it.
+	var effective_speed: float = cruise_speed
+	if curvature_speed_limit:
+		var kappa := _max_curvature_ahead(_s_drone, path_length)
+		var scale: float = 1.0 / (1.0 + curvature_weight * kappa)
+		scale = max(scale, curvature_min_speed_fraction)
+		effective_speed = cruise_speed * scale
+
+	_s_target += effective_speed * delta
 	if _closed:
 		_s_target = fposmod(_s_target, path_length)
 
@@ -320,6 +356,50 @@ func _rebuild_curve() -> void:
 		# Because our control points *are* on the curve, this is
 		# exactly the arc-length at that waypoint.
 		_waypoint_arc_lengths.append(_curve.get_closest_offset(_waypoints[i].global_position))
+
+
+## Peek along the curve between `from_s` and `from_s + preview` and
+## return the maximum curvature κ (in 1/m) found there.
+##
+## Curvature is computed from the tangent difference between two
+## samples: κ = |T₂ − T₁| / ds.  This is the standard finite-
+## difference approximation of |dT/ds| and is good to a few percent
+## at the baked resolution we use (0.2 m).
+func _max_curvature_ahead(from_s: float, path_length: float) -> float:
+	if _curve == null or curvature_preview_distance <= 0.0:
+		return 0.0
+	var step: float = 1.0        # metres between curvature samples
+	var eps: float = 0.25        # metres either side for tangent finite difference
+	var max_kappa: float = 0.0
+	var s: float = from_s + step
+	var end_s: float = from_s + curvature_preview_distance
+	while s <= end_s:
+		var s_here: float = s
+		if _closed:
+			s_here = fposmod(s_here, path_length)
+		elif s_here >= path_length:
+			break
+		var s_prev: float = s_here - eps
+		var s_next: float = s_here + eps
+		if _closed:
+			s_prev = fposmod(s_prev, path_length)
+			s_next = fposmod(s_next, path_length)
+		else:
+			s_prev = clamp(s_prev, 0.0, path_length)
+			s_next = clamp(s_next, 0.0, path_length)
+		var p_prev: Vector3 = _curve.sample_baked(s_prev)
+		var p_next: Vector3 = _curve.sample_baked(s_next)
+		var p_here: Vector3 = _curve.sample_baked(s_here)
+		var t_in: Vector3 = (p_here - p_prev)
+		var t_out: Vector3 = (p_next - p_here)
+		var l_in: float = t_in.length()
+		var l_out: float = t_out.length()
+		if l_in > 0.0001 and l_out > 0.0001:
+			var kappa: float = (t_out / l_out - t_in / l_in).length() / eps
+			if kappa > max_kappa:
+				max_kappa = kappa
+		s += step
+	return max_kappa
 
 
 ## Project `world_pos` onto the curve and return its arc-length.
