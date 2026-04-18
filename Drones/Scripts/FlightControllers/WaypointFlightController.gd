@@ -122,12 +122,14 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	if xz_distance > arrival_radius:
 		# Position PID on each body axis → target tilt angle.
-		# Body +Z points backward (Godot convention), so a target
-		# ahead of us has negative body-Z; nose-down pitch
-		# (positive target) accelerates us along -body-Z — hence
-		# we feed -error_body.z as the pitch reference.
+		# Body-forward in Godot is -Z, so a target ahead has
+		# error_body.z < 0.  Nose-down (positive pitch target)
+		# accelerates the drone forward (-Z), so we want
+		# wp_pitch_target ∝ -error_body.z: feed error_body.z into
+		# _pid(target=0, current=error_body.z) which returns an
+		# output ∝ -error_body.z.
 		var pitch_correction := _pid(
-			0.0, -error_body.z,
+			0.0, error_body.z,
 			pos_p, pos_i, pos_d, dt,
 			_pos_z_integral, _pos_z_prev_error
 		)

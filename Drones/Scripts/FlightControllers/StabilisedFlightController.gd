@@ -39,14 +39,16 @@ class_name FlightStabilisedController
 
 ## Derivative: damps oscillation.  Uses derivative-on-measurement so
 ## stick movement does NOT produce a kick — only actual rotation does.
-@export_range(0.0, 5.0, 0.001) var pitch_d: float = 0.04
+## Needs to be large enough to arrest the drone's angular velocity
+## before it overshoots past the target tilt; too low = flips.
+@export_range(0.0, 5.0, 0.001) var pitch_d: float = 0.15
 
 
 # ── PID gains for roll axis ──────────────────────────────────────
 
 @export_range(0.0, 5.0, 0.001) var roll_p: float = 0.08
 @export_range(0.0, 2.0, 0.001) var roll_i: float = 0.0
-@export_range(0.0, 5.0, 0.001) var roll_d: float = 0.04
+@export_range(0.0, 5.0, 0.001) var roll_d: float = 0.15
 
 
 # ── PID gains for vertical (altitude hold) ───────────────────────
@@ -68,7 +70,7 @@ class_name FlightStabilisedController
 ## This is the CRITICAL safety valve for high-thrust-to-weight drones:
 ## it bounds how much differential thrust attitude corrections can command.
 ## Roughly equal to hover throttle (mass*g / total_max_force) works well.
-@export_range(0.0, 1.0, 0.001) var attitude_authority: float = 0.1
+@export_range(0.0, 1.0, 0.001) var attitude_authority: float = 0.25
 
 
 # ── yaw damping ───────────────────────────────────────────────────
