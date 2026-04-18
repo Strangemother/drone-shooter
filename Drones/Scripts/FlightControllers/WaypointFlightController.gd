@@ -28,20 +28,31 @@ var waypoint_target: Node3D = null
 
 # ── position PID gains (XZ plane) ────────────────────────────────
 
-## Proportional: how aggressively the drone tilts toward the waypoint.
-@export_range(0.0, 5.0, 0.001) var pos_p: float = 0.15
+## Proportional: how aggressively the drone slows as it nears the
+## waypoint.  Acts on the distance-to-go to derive a *target approach
+## velocity* (see `max_approach_speed`) — not directly on tilt.  Higher
+## values produce a later, harder brake.
+@export_range(0.0, 5.0, 0.001) var pos_p: float = 0.5
 
-## Integral: corrects persistent positional drift (e.g. wind).
-@export_range(0.0, 2.0, 0.001) var pos_i: float = 0.01
+## Integral: small constant bias to counter wind or trim errors.
+@export_range(0.0, 2.0, 0.001) var pos_i: float = 0.0
 
-## Derivative: damps approach speed to prevent overshoot.
-@export_range(0.0, 5.0, 0.001) var pos_d: float = 0.325
+## Derivative: the main tilt gain.  Acts on the error between actual
+## body-frame velocity and the target approach velocity.  Higher = more
+## aggressive tilt to correct speed errors (feels punchier, can wobble).
+@export_range(0.0, 5.0, 0.001) var pos_d: float = 0.15
 
 
 # ── limits ────────────────────────────────────────────────────────
 
+## Maximum speed (m/s) the drone will cruise toward the waypoint at.
+## The target velocity ramps from 0 at the waypoint to this value
+## outside a "brake distance" of roughly `max_approach_speed / pos_p`.
+@export_range(0.1, 50.0, 0.1) var max_approach_speed: float = 8.0
+
 ## Maximum tilt angle the waypoint tracking can command (radians).
-## Caps how fast the drone flies toward the waypoint.  ~0.35 rad ≈ 20°.
+## Caps how hard the drone tilts to correct velocity errors.  ~0.35
+## rad ≈ 20°.
 @export_range(0.0, 1.57, 0.01) var max_waypoint_tilt: float = 0.35
 
 ## Distance (metres) at which the drone is considered "arrived".
@@ -190,35 +201,48 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		)
 
 	if xz_distance > arrival_radius:
-		# PD on body-Z position → pitch command.
-		#   Body-forward is -Z, so a waypoint ahead has err_body.z < 0
-		#   and we want a positive pitch target (nose-down = fly
-		#   forward in -Z).  → term:  −pos_p * err_body.z
-		#   Damping:  as the drone gains −Z velocity it should back
-		#   off pitch.  vel_body.z is negative when flying forward,
-		#   so +pos_d * vel_body.z reduces the pitch command as
-		#   forward speed builds.
+		# ── cascaded position → velocity control ──────────────
+		# Instead of P-on-position (which saturates at long range and
+		# leaves no authority for D to brake), compute a *target
+		# approach velocity* from the distance, clamped to a sane
+		# cruise speed.  Then let the tilt command be driven by the
+		# difference between actual body velocity and that target.
+		#
+		# Body-frame sign reminder:
+		#   • Forward waypoint → err_body.z < 0, target_vel_z < 0
+		#   • Flying forward   → vel_body.z   < 0
+		#   • Nose-down pitch (positive) accelerates the drone in -Z.
+		#
+		# target_vel = clamp(pos_p * err_body, ±max_approach_speed)
+		# vel_error  = vel_body - target_vel
+		# pitch_raw  = pos_d * vel_error.z      (positive if too slow)
+		# roll_raw   = -pos_d * vel_error.x     (sign flip: +X roll = right-wing-down)
+		var target_vel_z := clampf(
+			pos_p * error_body.z,
+			-max_approach_speed, max_approach_speed
+		)
+		var target_vel_x := clampf(
+			pos_p * error_body.x,
+			-max_approach_speed, max_approach_speed
+		)
+		var vel_err_z := vel_body.z - target_vel_z
+		var vel_err_x := vel_body.x - target_vel_x
+
+		# Integral on *velocity* error — small, corrects steady-state
+		# headwind / trim.  Kept optional; default pos_i = 0.
 		_pos_z_integral = clampf(
-			_pos_z_integral + (-error_body.z) * dt,
+			_pos_z_integral + vel_err_z * dt,
 			-integral_limit, integral_limit
 		)
-		var pitch_raw := -pos_p * error_body.z \
-			+ pos_i * _pos_z_integral \
-			+ pos_d * vel_body.z
+		_pos_x_integral = clampf(
+			_pos_x_integral + vel_err_x * dt,
+			-integral_limit, integral_limit
+		)
+
+		var pitch_raw := (pos_d * vel_err_z) + (pos_i * _pos_z_integral)
 		wp_pitch_target = clampf(pitch_raw, -max_waypoint_tilt, max_waypoint_tilt)
 
-		# PD on body-X position → roll command.
-		#   Waypoint to the right gives err_body.x > 0, and we want
-		#   a positive roll target (right-wing-down).
-		#   Damping: drone accelerating right has vel_body.x > 0,
-		#   which should reduce the roll command.
-		_pos_x_integral = clampf(
-			_pos_x_integral + error_body.x * dt,
-			-integral_limit, integral_limit
-		)
-		var roll_raw := pos_p * error_body.x \
-			+ pos_i * _pos_x_integral \
-			- pos_d * vel_body.x
+		var roll_raw := (-pos_d * vel_err_x) + (-pos_i * _pos_x_integral)
 		wp_roll_target = clampf(roll_raw, -max_waypoint_tilt, max_waypoint_tilt)
 
 		# Fade pitch/roll to zero when we're not facing the waypoint
@@ -318,10 +342,15 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		_debug_accum += dt
 		if _debug_accum >= 0.5:
 			_debug_accum = 0.0
-			print("[waypoint] err_body=%s vel_body=%s heading_err=%.2f align=%.2f wp_pitch=%.3f wp_roll=%.3f cur_pitch=%.3f cur_roll=%.3f dist=%.2f" % [
+			# Re-derive target velocity for the print (cheap, & keeps
+			# the main loop readable).  Only meaningful when outside
+			# arrival_radius — inside, target_vel is effectively 0.
+			var tv_z := clampf(pos_p * error_body.z, -max_approach_speed, max_approach_speed)
+			var tv_x := clampf(pos_p * error_body.x, -max_approach_speed, max_approach_speed)
+			print("[waypoint] err_body=%s vel_body=%s target_vel=(%.2f,?,%.2f) heading_err=%.2f align=%.2f wp_pitch=%.3f wp_roll=%.3f dist=%.2f" % [
 				error_body, vel_body,
+				tv_x, tv_z,
 				heading_error, align_factor,
 				wp_pitch_target, wp_roll_target,
-				current_pitch, current_roll,
 				xz_distance,
 			])
