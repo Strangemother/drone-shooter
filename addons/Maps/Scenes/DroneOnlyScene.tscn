@@ -9,7 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://d27xhk2ygjsbr" path="res://addons/Targets/Scenes/HitableBoxScene.tscn" id="7_wrhm4"]
 [ext_resource type="PackedScene" uid="uid://bwggrf7sbmkcv" path="res://addons/PlayerCharacter/Scenes/PlayerCharacterScene.tscn" id="8_ciufw"]
 [ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/Drone2Scene.tscn" id="9_dk501"]
-[ext_resource type="Script" uid="uid://bccldnquvg0f7" path="res://addons/Maps/Scripts/waypoint_path_smooth.gd" id="10_0rbnq"]
+[ext_resource type="Script" uid="uid://bsqhrlcr7q1ou" path="res://addons/Maps/Scripts/waypoint_path_curve.gd" id="10_0rbnq"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_atpwd"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -359,11 +359,15 @@ mesh = SubResource("SphereMesh_0ldo7")
 [node name="WaypointPath" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 6, -37)
 script = ExtResource("10_0rbnq")
-cruise_speed = 15.0
-lookahead_distance = 3.0
+cruise_speed = 10.0
+lookahead_distance = 10.0
 max_lead_distance = 10.0
-arrival_handoff_distance = 3.0
-loop_mode = 1
+arrival_handoff_distance = 1.0
+curvature_speed_limit = null
+curvature_preview_distance = null
+curvature_weight = null
+curvature_min_speed_fraction = null
+loop_mode = 2
 
 [node name="Waypoint0" type="Node3D" parent="WaypointPath"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 16)
