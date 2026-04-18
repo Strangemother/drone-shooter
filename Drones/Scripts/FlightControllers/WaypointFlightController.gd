@@ -149,8 +149,9 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		wp_roll_target = clampf(-roll_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
 
 	# ── attitude: current tilt angles (body frame) ───────────────
+	# Positive = nose-down / right-wing-down, matching target and mix.
 	var world_up_body := basis_t * Vector3.UP
-	var current_pitch := atan2(-world_up_body.z, world_up_body.y)
+	var current_pitch := atan2(world_up_body.z, world_up_body.y)
 	var current_roll  := atan2(world_up_body.x, world_up_body.y)
 	var omega_body := basis_t * body.angular_velocity
 

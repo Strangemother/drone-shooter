@@ -125,13 +125,16 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var basis_t := basis.transposed()  # orthonormal inverse — world→body
 
 	# Measure tilt in the BODY frame so it stays consistent with the
-	# thruster mix (which is also computed in body frame).  Using
-	# world-frame tilt here causes pitch/roll to couple through yaw
-	# and produces a runaway spin as soon as the drone isn't facing
-	# world-forward.
+	# thruster mix (which is also computed in body frame).
+	#
+	# Sign convention: positive current_pitch = nose-DOWN (matches the
+	# mix, where positive pitch_output = rear motors harder = nose-down)
+	# and matches the player input (positive target = stick forward =
+	# wants nose-down to fly forward).  Getting the sign here wrong
+	# produces a runaway positive-feedback loop on the pitch axis.
 	var world_up_body := basis_t * Vector3.UP
-	var current_pitch := atan2(-world_up_body.z, world_up_body.y)  # rotation about body-X
-	var current_roll  := atan2(world_up_body.x, world_up_body.y)   # rotation about body-Z
+	var current_pitch := atan2(world_up_body.z, world_up_body.y)   # + = nose-down
+	var current_roll  := atan2(world_up_body.x, world_up_body.y)   # + = right-wing-down
 
 	# Body-frame angular velocity (rad/s about body X / Y / Z).
 	var omega_body := basis_t * body.angular_velocity
