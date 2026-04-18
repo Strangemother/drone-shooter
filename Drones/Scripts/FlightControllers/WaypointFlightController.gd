@@ -207,18 +207,5 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	_alt_prev_error = alt_correction.z
 	collective += alt_correction.x
 
-	# ── mix per-thruster ─────────────────────────────────────────
-	var max_arm_x := get_max_arm_length(body, thrusters, "x")
-	var max_arm_z := get_max_arm_length(body, thrusters, "z")
-
-	for thruster in thrusters:
-		var offset := body.to_local(thruster.global_position)
-		var pitch_mix := 0.0
-		var roll_mix := 0.0
-
-		if max_arm_z > 0.0:
-			pitch_mix = (offset.z / max_arm_z) * pitch_output
-		if max_arm_x > 0.0:
-			roll_mix = (-offset.x / max_arm_x) * roll_output
-
-		thruster.set_throttle(clampf(collective + pitch_mix + roll_mix, 0.0, 1.0))
+	# ── mix per-thruster (airmode: attitude > altitude) ──────────
+	_apply_mix(body, thrusters, pitch_output, roll_output, collective)

@@ -198,24 +198,15 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		_alt_prev_error = alt_error_correction.z
 		collective += alt_error_correction.x
 
-	# ── mix per-thruster ─────────────────────────────────────────
-	var max_arm_x := get_max_arm_length(body, thrusters, "x")
-	var max_arm_z := get_max_arm_length(body, thrusters, "z")
-
-	for thruster in thrusters:
-		var offset := body.to_local(thruster.global_position)
-		var pitch_mix := 0.0
-		var roll_mix := 0.0
-
-		# Pitch differential: rear engines push more to pitch nose-down.
-		if max_arm_z > 0.0:
-			pitch_mix = (offset.z / max_arm_z) * pitch_output
-
-		# Roll differential: left engines push more to roll right.
-		if max_arm_x > 0.0:
-			roll_mix = (-offset.x / max_arm_x) * roll_output
-
-		thruster.set_throttle(clampf(collective + pitch_mix + roll_mix, 0.0, 1.0))
+	# ── mix per-thruster with saturation balancing ──────────────
+	# Compute attitude contributions first, then fit the collective
+	# into whatever throttle range remains.  Attitude is preserved at
+	# the cost of altitude — this is "airmode" behaviour and is the
+	# critical difference between a drone that recovers from hard
+	# input and one that flips.  Motors can't produce negative thrust,
+	# so if the front motors would need to go below zero to oppose a
+	# nose-down rotation, the old code simply let the drone flip.
+	_apply_mix(body, thrusters, pitch_output, roll_output, collective)
 
 
 # ── PID helper ────────────────────────────────────────────────────
@@ -282,6 +273,68 @@ func _pid_rate(
 func _hover_throttle(body: RigidBody3D, total_max: float) -> float:
 	var g := maxf(float(ProjectSettings.get_setting("physics/3d/default_gravity")) - anti_gravity, 0.0)
 	return clampf((body.mass * g) / total_max, 0.0, 1.0)
+
+
+## Airmode-style thruster mix.
+##
+## Computes each motor's attitude contribution (pitch + roll differential)
+## first, then fits the collective throttle into whatever [0,1] range
+## remains — preserving the attitude differential at all costs.  If the
+## attitude demand itself exceeds the full throttle range it is scaled
+## down proportionally (so the drone doesn't spin up harder than
+## physically possible) but the ratio between motors is maintained.
+##
+## The outcome: when the drone has to choose between "keep altitude" and
+## "don't flip", it chooses "don't flip" every time.
+func _apply_mix(
+	body: RigidBody3D,
+	thrusters: Array[Node],
+	pitch_output: float,
+	roll_output: float,
+	collective: float
+) -> void:
+	var n := thrusters.size()
+	if n == 0:
+		return
+
+	var max_arm_x := get_max_arm_length(body, thrusters, "x")
+	var max_arm_z := get_max_arm_length(body, thrusters, "z")
+
+	# 1) Per-motor attitude contribution.
+	var atti := PackedFloat32Array()
+	atti.resize(n)
+	var max_a := -INF
+	var min_a :=  INF
+	for i in n:
+		var offset := body.to_local(thrusters[i].global_position)
+		var pm := 0.0
+		var rm := 0.0
+		if max_arm_z > 0.0:
+			pm = (offset.z / max_arm_z) * pitch_output
+		if max_arm_x > 0.0:
+			rm = (-offset.x / max_arm_x) * roll_output
+		var a := pm + rm
+		atti[i] = a
+		if a > max_a: max_a = a
+		if a < min_a: min_a = a
+
+	# 2) If the attitude span is wider than [0,1], scale it down
+	# while preserving ratios between motors.
+	var span := max_a - min_a
+	if span > 1.0:
+		var scale := 1.0 / span
+		for i in n:
+			atti[i] *= scale
+		max_a *= scale
+		min_a *= scale
+
+	# 3) Clamp collective into the remaining throttle window so
+	# that (collective + atti[i]) stays in [0,1] for every motor.
+	# This sacrifices altitude authority to preserve attitude.
+	var collective_effective := clampf(collective, -min_a, 1.0 - max_a)
+
+	for i in n:
+		thrusters[i].set_throttle(clampf(collective_effective + atti[i], 0.0, 1.0))
 
 
 func _get_delta() -> float:
