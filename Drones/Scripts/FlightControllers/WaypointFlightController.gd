@@ -49,6 +49,17 @@ var waypoint_target: Node3D = null
 @export_range(0.0, 5.0, 0.01) var arrival_radius: float = 0.3
 
 
+# ── debug ────────────────────────────────────────────────────────
+
+## If true, prints body-frame error and commanded tilt ~2× a second.
+## Use this to diagnose "drone flies away from waypoint" bugs — check
+## that `error_body` points in the direction you expect, and that
+## `wp_pitch_target` / `wp_roll_target` have the sign you'd expect
+## given the drone's body-forward = -Z convention.
+@export var debug_print: bool = false
+var _debug_accum: float = 0.0
+
+
 # ── internal position PID state ──────────────────────────────────
 
 var _pos_x_integral: float = 0.0
@@ -209,3 +220,18 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	# ── mix per-thruster (airmode: attitude > altitude) ──────────
 	_apply_mix(body, thrusters, pitch_output, roll_output, collective)
+
+	# ── optional debug ───────────────────────────────────────────
+	if debug_print:
+		_debug_accum += dt
+		if _debug_accum >= 0.5:
+			_debug_accum = 0.0
+			# Forward unit-vector of the body expressed in world space.
+			# If this points roughly the same way the drone's nose
+			# *looks* in the scene, body-forward = -Z is correct.
+			var body_forward_world := -basis.z
+			print("[waypoint] err_world=%s err_body=%s body_fwd=%s wp_pitch=%.3f wp_roll=%.3f cur_pitch=%.3f cur_roll=%.3f" % [
+				error_world, error_body, body_forward_world,
+				wp_pitch_target, wp_roll_target,
+				current_pitch, current_roll,
+			])
