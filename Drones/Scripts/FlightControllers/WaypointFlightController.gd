@@ -68,6 +68,18 @@ var waypoint_target: Node3D = null
 
 # ── yaw-to-waypoint ──────────────────────────────────────────────
 
+## If the drone's visible nose points at body +Z instead of body -Z
+## (common for FBX meshes authored with "+Z forward"), enable this.
+## The waypoint loop mirrors its body-frame interpretation so the
+## drone rotates toward the waypoint correctly and accelerates with
+## its actual nose forward — without touching the stabilised
+## controller's stick-input conventions.
+##
+## Quick test: place a waypoint *visually* in front of the drone.
+## • If the drone rotates ~0° and flies toward it  →  leave OFF.
+## • If the drone rotates ~180° and flies away     →  turn ON.
+@export var invert_forward: bool = false
+
 ## If true, the waypoint controller actively yaws the drone so its nose
 ## points at the waypoint (horizontal plane only).  Without this the
 ## drone will happily fly tail-first or sideways to reach the target,
@@ -180,6 +192,18 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# both at once.
 	var vel_body := basis_t * body.linear_velocity
 
+	# Forward-convention sign.  When the drone mesh is authored with
+	# its nose at body +Z (rather than Godot's -Z convention),
+	# mirroring the X/Z components of the body-frame vectors makes
+	# the waypoint loop "see" forward as -Z again.  We then flip
+	# the pitch/roll outputs back to the real frame before handing
+	# them to the attitude loop, which always interprets positive
+	# pitch as "accelerate toward body -Z".  Y is unchanged (altitude
+	# is unaffected by yaw-plane mirroring).
+	var fwd_sign: float = -1.0 if invert_forward else 1.0
+	var err_fwd := Vector3(fwd_sign * error_body.x, error_body.y, fwd_sign * error_body.z)
+	var vel_fwd := Vector3(fwd_sign * vel_body.x, vel_body.y, fwd_sign * vel_body.z)
+
 	# ── if within arrival radius, just stabilise in place ────────
 	var xz_distance := Vector2(error_world.x, error_world.z).length()
 	var wp_pitch_target := 0.0
@@ -187,16 +211,17 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	# Heading error: angle between body-forward (-Z in body = (0,0,-1))
 	# and the horizontal direction to the waypoint, expressed in body
-	# frame.  Computed from error_body.xz so it's yaw-only.
+	# frame.  Computed from err_fwd.xz so it's yaw-only and respects
+	# the invert_forward convention.
 	#
-	#   atan2(err_body.x, -err_body.z)
+	#   atan2(err_fwd.x, -err_fwd.z)
 	#
-	# returns 0 when the waypoint is directly ahead (err_body.z < 0,
-	# err_body.x = 0), +π/2 when directly to the right, and ±π when
+	# returns 0 when the waypoint is directly ahead (err_fwd.z < 0,
+	# err_fwd.x = 0), +π/2 when directly to the right, and ±π when
 	# directly behind.  Positive = need to yaw right.
 	var heading_error := 0.0
 	if xz_distance > 0.01:
-		heading_error = atan2(error_body.x, -error_body.z)
+		heading_error = atan2(err_fwd.x, -err_fwd.z)
 
 	# Pitch attenuation: if the drone isn't roughly facing the
 	# waypoint, don't accelerate toward it — rotate first.  Scales
@@ -217,25 +242,24 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		# cruise speed.  Then let the tilt command be driven by the
 		# difference between actual body velocity and that target.
 		#
-		# Body-frame sign reminder:
-		#   • Forward waypoint → err_body.z < 0, target_vel_z < 0
-		#   • Flying forward   → vel_body.z   < 0
+		# Sign conventions (in the "forward-aligned" frame where
+		# the drone's nose is at -Z regardless of invert_forward):
+		#   • Forward waypoint → err_fwd.z < 0, target_vel_z < 0
+		#   • Flying forward   → vel_fwd.z   < 0
 		#   • Nose-down pitch (positive) accelerates the drone in -Z.
-		#
-		# target_vel = clamp(pos_p * err_body, ±max_approach_speed)
-		# vel_error  = vel_body - target_vel
-		# pitch_raw  = pos_d * vel_error.z      (positive if too slow)
-		# roll_raw   = -pos_d * vel_error.x     (sign flip: +X roll = right-wing-down)
+		#   • We multiply the final tilt by fwd_sign so the attitude
+		#     loop (which always treats +pitch as "+ toward real -Z")
+		#     produces acceleration along the real nose_forward axis.
 		var target_vel_z := clampf(
-			pos_p * error_body.z,
+			pos_p * err_fwd.z,
 			-max_approach_speed, max_approach_speed
 		)
 		var target_vel_x := clampf(
-			pos_p * error_body.x,
+			pos_p * err_fwd.x,
 			-max_approach_speed, max_approach_speed
 		)
-		var vel_err_z := vel_body.z - target_vel_z
-		var vel_err_x := vel_body.x - target_vel_x
+		var vel_err_z := vel_fwd.z - target_vel_z
+		var vel_err_x := vel_fwd.x - target_vel_x
 
 		# Integral on *velocity* error — small, corrects steady-state
 		# headwind / trim.  Kept optional; default pos_i = 0.
@@ -253,6 +277,11 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 		var roll_raw := (-pos_d * vel_err_x) + (-pos_i * _pos_x_integral)
 		wp_roll_target = clampf(roll_raw, -max_waypoint_tilt, max_waypoint_tilt)
+
+		# Flip back to the real body frame if the drone's nose
+		# is at body +Z (see invert_forward).
+		wp_pitch_target *= fwd_sign
+		wp_roll_target *= fwd_sign
 
 		# Fade pitch/roll to zero when we're not facing the waypoint
 		# so the yaw loop can rotate us before we start flying.
@@ -354,10 +383,13 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 			# Re-derive target velocity for the print (cheap, & keeps
 			# the main loop readable).  Only meaningful when outside
 			# arrival_radius — inside, target_vel is effectively 0.
-			var tv_z := clampf(pos_p * error_body.z, -max_approach_speed, max_approach_speed)
-			var tv_x := clampf(pos_p * error_body.x, -max_approach_speed, max_approach_speed)
-			print("[waypoint] err_body=%s vel_body=%s target_vel=(%.2f,?,%.2f) heading_err=%.2f align=%.2f wp_pitch=%.3f wp_roll=%.3f dist=%.2f" % [
-				error_body, vel_body,
+			# Printed in the *forward-aligned* frame: -Z means
+			# "toward the drone's actual nose" regardless of
+			# invert_forward, so the numbers always read the same.
+			var tv_z := clampf(pos_p * err_fwd.z, -max_approach_speed, max_approach_speed)
+			var tv_x := clampf(pos_p * err_fwd.x, -max_approach_speed, max_approach_speed)
+			print("[waypoint] err_fwd=%s vel_fwd=%s target_vel=(%.2f,?,%.2f) heading_err=%.2f align=%.2f wp_pitch=%.3f wp_roll=%.3f dist=%.2f" % [
+				err_fwd, vel_fwd,
 				tv_x, tv_z,
 				heading_error, align_factor,
 				wp_pitch_target, wp_roll_target,
