@@ -63,10 +63,7 @@ var _debug_accum: float = 0.0
 # ── internal position PID state ──────────────────────────────────
 
 var _pos_x_integral: float = 0.0
-var _pos_x_prev_error: float = 0.0
-
 var _pos_z_integral: float = 0.0
-var _pos_z_prev_error: float = 0.0
 
 
 func _ready() -> void:
@@ -80,25 +77,19 @@ func set_waypoint(target: Node3D) -> void:
 	waypoint_target = target
 	# Reset position PID so old integral state doesn't cause a lurch.
 	_pos_x_integral = 0.0
-	_pos_x_prev_error = 0.0
 	_pos_z_integral = 0.0
-	_pos_z_prev_error = 0.0
 
 
 func clear_waypoint() -> void:
 	waypoint_target = null
 	_pos_x_integral = 0.0
-	_pos_x_prev_error = 0.0
 	_pos_z_integral = 0.0
-	_pos_z_prev_error = 0.0
 
 
 func reset_state() -> void:
 	super.reset_state()
 	_pos_x_integral = 0.0
-	_pos_x_prev_error = 0.0
 	_pos_z_integral = 0.0
-	_pos_z_prev_error = 0.0
 
 
 func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
@@ -126,38 +117,57 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var basis_t := basis.transposed()
 	var error_body := basis_t * error_world
 
+	# Body-frame linear velocity — used as the D-term rate, the same
+	# way the attitude loop uses body angular velocity.  Finite
+	# differencing of the position error produces catastrophic frame-
+	# to-frame noise (the command can flip sign every tick on small
+	# errors) AND provides no real damping of approach speed, so the
+	# drone accelerates at a saturated tilt all the way to the
+	# waypoint and smashes through it.  Using linear velocity fixes
+	# both at once.
+	var vel_body := basis_t * body.linear_velocity
+
 	# ── if within arrival radius, just stabilise in place ────────
 	var xz_distance := Vector2(error_world.x, error_world.z).length()
 	var wp_pitch_target := 0.0
 	var wp_roll_target := 0.0
 
 	if xz_distance > arrival_radius:
-		# Position PID on each body axis → target tilt angle.
-		# Body-forward in Godot is -Z, so a target ahead has
-		# error_body.z < 0.  Nose-down (positive pitch target)
-		# accelerates the drone forward (-Z), so we want
-		# wp_pitch_target ∝ -error_body.z: feed error_body.z into
-		# _pid(target=0, current=error_body.z) which returns an
-		# output ∝ -error_body.z.
-		var pitch_correction := _pid(
-			0.0, error_body.z,
-			pos_p, pos_i, pos_d, dt,
-			_pos_z_integral, _pos_z_prev_error
+		# PD on body-Z position → pitch command.
+		#   Body-forward is -Z, so a waypoint ahead has err_body.z < 0
+		#   and we want a positive pitch target (nose-down = fly
+		#   forward in -Z).  → term:  −pos_p * err_body.z
+		#   Damping:  as the drone gains −Z velocity it should back
+		#   off pitch.  vel_body.z is negative when flying forward,
+		#   so +pos_d * vel_body.z reduces the pitch command as
+		#   forward speed builds.
+		_pos_z_integral = clampf(
+			_pos_z_integral + (-error_body.z) * dt,
+			-integral_limit, integral_limit
 		)
-		_pos_z_integral = pitch_correction.y
-		_pos_z_prev_error = pitch_correction.z
-		wp_pitch_target = clampf(pitch_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
+		var pitch_raw := -pos_p * error_body.z \
+			+ pos_i * _pos_z_integral \
+			+ pos_d * vel_body.z
+		wp_pitch_target = clampf(pitch_raw, -max_waypoint_tilt, max_waypoint_tilt)
 
-		# Positive body-X error (target to the right) needs positive
-		# roll (tilt right).  _pid(0, x) output ∝ −x, so negate.
-		var roll_correction := _pid(
-			0.0, error_body.x,
-			pos_p, pos_i, pos_d, dt,
-			_pos_x_integral, _pos_x_prev_error
+		# PD on body-X position → roll command.
+		#   Waypoint to the right gives err_body.x > 0, and we want
+		#   a positive roll target (right-wing-down).
+		#   Damping: drone accelerating right has vel_body.x > 0,
+		#   which should reduce the roll command.
+		_pos_x_integral = clampf(
+			_pos_x_integral + error_body.x * dt,
+			-integral_limit, integral_limit
 		)
-		_pos_x_integral = roll_correction.y
-		_pos_x_prev_error = roll_correction.z
-		wp_roll_target = clampf(-roll_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
+		var roll_raw := pos_p * error_body.x \
+			+ pos_i * _pos_x_integral \
+			- pos_d * vel_body.x
+		wp_roll_target = clampf(roll_raw, -max_waypoint_tilt, max_waypoint_tilt)
+	else:
+		# Inside arrival radius — bleed the position integrals so
+		# they don't carry a stale bias into the next waypoint.
+		_pos_x_integral = 0.0
+		_pos_z_integral = 0.0
 
 	# ── attitude: current tilt angles (body frame) ───────────────
 	# Positive = nose-down / right-wing-down, matching target and mix.
@@ -230,8 +240,9 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 			# If this points roughly the same way the drone's nose
 			# *looks* in the scene, body-forward = -Z is correct.
 			var body_forward_world := -basis.z
-			print("[waypoint] err_world=%s err_body=%s body_fwd=%s wp_pitch=%.3f wp_roll=%.3f cur_pitch=%.3f cur_roll=%.3f" % [
-				error_world, error_body, body_forward_world,
+			print("[waypoint] err_body=%s vel_body=%s body_fwd=%s wp_pitch=%.3f wp_roll=%.3f cur_pitch=%.3f cur_roll=%.3f dist=%.2f" % [
+				error_body, vel_body, body_forward_world,
 				wp_pitch_target, wp_roll_target,
 				current_pitch, current_roll,
+				xz_distance,
 			])
