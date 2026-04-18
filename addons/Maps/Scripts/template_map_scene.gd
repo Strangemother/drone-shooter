@@ -2,7 +2,7 @@ extends Node3D
 
 ## Path to the drone node to reset. Set this in the inspector to match
 ## your scene tree (e.g. "ShootingRangeTargetManager/DroneScene").
-@export var drone_path: NodePath = NodePath("ShootingRangeTargetManager/DroneScene")
+@export var drone_path: NodePath = NodePath("DroneScene")
 
 ## The drone's spawn transform, captured automatically on _ready().
 var _drone_spawn_transform: Transform3D

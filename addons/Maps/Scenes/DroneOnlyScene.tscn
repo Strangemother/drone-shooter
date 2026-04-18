@@ -8,7 +8,7 @@
 [ext_resource type="Script" uid="uid://c8a2kystypxdm" path="res://addons/Targets/Scripts/ShootingRangeTargetManagerScript.gd" id="6_3afx4"]
 [ext_resource type="PackedScene" uid="uid://d27xhk2ygjsbr" path="res://addons/Targets/Scenes/HitableBoxScene.tscn" id="7_wrhm4"]
 [ext_resource type="PackedScene" uid="uid://bwggrf7sbmkcv" path="res://addons/PlayerCharacter/Scenes/PlayerCharacterScene.tscn" id="8_ciufw"]
-[ext_resource type="PackedScene" uid="uid://de12os8gefuds" path="res://addons/Targets/Scenes/DroneScene.tscn" id="9_hvv1y"]
+[ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/Drone2Scene.tscn" id="9_dk501"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_atpwd"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -31,7 +31,6 @@ rings = 8
 
 [node name="TemplateMap" type="Node3D"]
 script = ExtResource("1_dk501")
-drone_path = NodePath("DroneScene")
 
 [node name="Structures" type="Node3D" parent="."]
 
@@ -344,16 +343,14 @@ mass = 1.2
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -0.111524, 1.43224, -24.995)
 baseModelHeight = 1.8
 
-[node name="DroneScene" parent="." groups=["HitableObjects"] instance=ExtResource("9_hvv1y")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65029, 8.24284, -37.566)
-gravity_scale = 1.0
-linear_velocity = Vector3(0, 1, 0)
-
 [node name="NamingConventionConverter" type="Node" parent="."]
+
+[node name="DroneScene" parent="." groups=["HitableObjects"] instance=ExtResource("9_dk501")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 6, -55)
 
 [node name="Waypoint" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 3, 125)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Waypoint"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -171)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -171)
 mesh = SubResource("SphereMesh_0ldo7")
