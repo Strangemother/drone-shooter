@@ -94,6 +94,13 @@ var _segment_lengths: PackedFloat32Array = PackedFloat32Array()
 var _cumulative_lengths: PackedFloat32Array = PackedFloat32Array()
 var _path_length: float = 0.0
 
+## True when `loop_mode == LOOP` and we have ≥2 waypoints.  A closed
+## path has an extra synthetic segment from the last waypoint back
+## to the first so the virtual target can actually sweep the join —
+## without it, LOOP mode wedges at the end of the polyline because
+## the drone has nowhere physical to fly to.
+var _closed: bool = false
+
 ## Which authored waypoints we've already announced via
 ## `waypoint_reached`.  Index into `_waypoints`.
 var _last_announced_index: int = -1
@@ -141,34 +148,49 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# Update the drone's arc-length by projecting its current world
-	# position onto the polyline.  Without this the "lead distance"
-	# clamp has nothing to compare against, and a physically slow
-	# drone would let the target run away.
+	# position onto the polyline.  In closed (LOOP) mode this is a
+	# value in [0, _path_length); in open mode it's monotonic-ish
+	# along the polyline.
 	_s_drone = _project_to_arc_length(drone.global_position, _s_drone)
 
-	# Advance the virtual target's arc-length.  Bounded so it never
-	# leads the drone by more than `max_lead_distance` (design brief
-	# §7.3 option 2 — self-tuning under disturbance).
+	# Advance the virtual target's arc-length.
 	_s_target += cruise_speed * delta
+	if _closed:
+		_s_target = fposmod(_s_target, _path_length)
+
+	# Enforce the "virtual target can't outrun the drone by more
+	# than `max_lead_distance`" clamp.  In closed mode the distance
+	# between two arc-lengths is computed modulo the path length —
+	# otherwise a just-wrapped target looks like it's miles behind
+	# the drone and we'd stop advancing it.
 	if max_lead_distance > 0.0:
-		_s_target = min(_s_target, _s_drone + max_lead_distance)
+		var lead: float = _s_target - _s_drone
+		if _closed:
+			lead = fposmod(lead, _path_length)
+		if lead > max_lead_distance:
+			_s_target = _s_drone + max_lead_distance
+			if _closed:
+				_s_target = fposmod(_s_target, _path_length)
 
-	# Compute the world position the drone should actually chase:
-	# the point on the polyline `lookahead_distance` beyond the
-	# drone's own projected progress.
+	# Where the drone should actually chase: `lookahead_distance`
+	# along the path from wherever the drone currently is.  That
+	# makes the pursuit speed-adaptive — slow drone → short lead;
+	# fast drone → same fixed lead.
 	var chase_s: float = _s_drone + lookahead_distance
-	# Don't let the chase point fall behind the virtual target's
-	# monotonic progress — otherwise a drone that's briefly ahead
-	# of expectation would cause the target to snap backward.
-	chase_s = max(chase_s, _s_target)
 
-	_handle_progress(chase_s)
+	if _closed:
+		# Detect a lap: chase_s has wrapped past the end of the path.
+		if chase_s >= _path_length:
+			_last_announced_index = -1
+			emit_signal("path_looped")
+		chase_s = fposmod(chase_s, _path_length)
+		_handle_progress(chase_s)
+	else:
+		_handle_progress(chase_s)
+		if _handle_end_of_path(drone, chase_s):
+			return
+		chase_s = clamp(chase_s, 0.0, _path_length)
 
-	if _handle_end_of_path(drone, chase_s):
-		return
-
-	# Normal case — place the virtual target and hand it to the drone.
-	chase_s = clamp(chase_s, 0.0, _path_length)
 	_virtual_target.global_position = _sample_polyline(chase_s)
 
 	if debug_print:
@@ -253,6 +275,7 @@ func _recompute_arc_lengths() -> void:
 	_segment_lengths = PackedFloat32Array()
 	_cumulative_lengths = PackedFloat32Array()
 	_path_length = 0.0
+	_closed = loop_mode == LoopMode.LOOP and _waypoints.size() >= 2
 	if _waypoints.size() < 2:
 		return
 	_cumulative_lengths.append(0.0)
@@ -263,26 +286,44 @@ func _recompute_arc_lengths() -> void:
 		_segment_lengths.append(seg)
 		_path_length += seg
 		_cumulative_lengths.append(_path_length)
+	# Closing segment (last → first) so LOOP mode has a continuous
+	# path for the virtual target to sweep around.  Indexed as an
+	# extra segment after the authored ones; `_sample_polyline`
+	# handles it specially.
+	if _closed:
+		var a := _waypoints[_waypoints.size() - 1].global_position
+		var b := _waypoints[0].global_position
+		var seg := a.distance_to(b)
+		_segment_lengths.append(seg)
+		_path_length += seg
+		_cumulative_lengths.append(_path_length)
 
 
 ## Returns the world-space point at arc-length `s` along the polyline.
-## `s` is clamped to `[0, _path_length]`.
+## In closed (LOOP) mode `s` is taken modulo `_path_length` so callers
+## can pass monotonic progress without wrapping.
 func _sample_polyline(s: float) -> Vector3:
 	if _waypoints.is_empty():
 		return global_position
 	if _waypoints.size() == 1:
 		return _waypoints[0].global_position
-	s = clamp(s, 0.0, _path_length)
-	# Locate the segment containing `s`.  Linear scan is fine for
-	# the sub-hundred-point paths this system is built for.
+	if _closed:
+		s = fposmod(s, _path_length)
+	else:
+		s = clamp(s, 0.0, _path_length)
+	var n := _waypoints.size()
+	# Locate the segment containing `s`.  When closed the final
+	# segment (index n-1) is the synthetic last→first closer.
 	for i in range(_segment_lengths.size()):
-		var s0: float = _cumulative_lengths[i]
 		var s1: float = _cumulative_lengths[i + 1]
 		if s <= s1 or i == _segment_lengths.size() - 1:
+			var s0: float = _cumulative_lengths[i]
 			var seg_len: float = _segment_lengths[i]
 			var t: float = 0.0 if seg_len <= 0.0 else (s - s0) / seg_len
-			return _waypoints[i].global_position.lerp(_waypoints[i + 1].global_position, t)
-	return _waypoints[_waypoints.size() - 1].global_position
+			var a: Vector3 = _waypoints[i].global_position
+			var b: Vector3 = _waypoints[(i + 1) % n].global_position if _closed else _waypoints[i + 1].global_position
+			return a.lerp(b, t)
+	return _waypoints[n - 1].global_position
 
 
 ## Project `world_pos` onto the polyline and return its arc-length.
@@ -292,17 +333,27 @@ func _sample_polyline(s: float) -> Vector3:
 func _project_to_arc_length(world_pos: Vector3, hint_s: float) -> float:
 	if _segment_lengths.is_empty():
 		return 0.0
-	# Search a window of ±2 segments around the hint.  Cheap, and
-	# robust enough for anything short of a figure-8 revisit.
-	var hint_seg := _segment_index_for_arc_length(hint_s)
-	var first := max(0, hint_seg - 2)
-	var last := min(_segment_lengths.size() - 1, hint_seg + 2)
+	var n := _waypoints.size()
+	var first: int
+	var last: int
+	if _closed:
+		# Closed paths are short; just search every segment.  Avoids
+		# the "drone near the closing segment can't be found" bug a
+		# hint-window search would have right after a lap.
+		first = 0
+		last = _segment_lengths.size() - 1
+	else:
+		# Open paths: search a window of ±2 segments around the hint
+		# so self-intersecting layouts don't snap progress backward.
+		var hint_seg := _segment_index_for_arc_length(hint_s)
+		first = max(0, hint_seg - 2)
+		last = min(_segment_lengths.size() - 1, hint_seg + 2)
 
 	var best_s: float = hint_s
 	var best_d2: float = INF
 	for i in range(first, last + 1):
 		var a: Vector3 = _waypoints[i].global_position
-		var b: Vector3 = _waypoints[i + 1].global_position
+		var b: Vector3 = _waypoints[(i + 1) % n].global_position if _closed else _waypoints[i + 1].global_position
 		var seg: Vector3 = b - a
 		var seg_len2: float = seg.length_squared()
 		var t: float = 0.0
@@ -313,9 +364,7 @@ func _project_to_arc_length(world_pos: Vector3, hint_s: float) -> float:
 		if d2 < best_d2:
 			best_d2 = d2
 			best_s = _cumulative_lengths[i] + t * _segment_lengths[i]
-	# Arc-length is monotonic in the chase direction — don't let the
-	# projection snap us backward through a waypoint we've passed.
-	return max(best_s, hint_s * 0.999) if hint_s > 0.0 else best_s
+	return best_s
 
 
 func _segment_index_for_arc_length(s: float) -> int:
@@ -329,10 +378,9 @@ func _segment_index_for_arc_length(s: float) -> int:
 
 
 ## Emit `waypoint_reached` as the chase point crosses each authored
-## waypoint's arc-length.  Index 0 is treated as reached on start.
+## waypoint's arc-length.  Index 0 fires as soon as the chase point
+## starts moving along the path.
 func _handle_progress(chase_s: float) -> void:
-	# Walk forward through `_cumulative_lengths` announcing any
-	# waypoint whose arc-length the chase point has now passed.
 	var next_index := _last_announced_index + 1
 	while next_index < _waypoints.size():
 		var wp_s: float = _cumulative_lengths[next_index]
@@ -366,10 +414,9 @@ func _handle_end_of_path(drone: Node3D, chase_s: float) -> bool:
 					emit_signal("path_completed")
 			return true
 		LoopMode.LOOP:
-			_s_drone = wrapf(_s_drone, 0.0, _path_length)
-			_s_target = wrapf(_s_target, 0.0, _path_length)
-			_last_announced_index = -1
-			emit_signal("path_looped")
+			# Closed-path LOOP is handled inside `_physics_process`
+			# (arc-length wrapping).  This branch is only reached if
+			# `_closed` was false — shouldn't happen, but be safe.
 			return false
 		LoopMode.PING_PONG:
 			# Flip the waypoint order and restart progress.  Cheap
