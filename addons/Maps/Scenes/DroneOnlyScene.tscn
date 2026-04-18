@@ -347,6 +347,7 @@ baseModelHeight = 1.8
 
 [node name="DroneScene" parent="." groups=["HitableObjects"] instance=ExtResource("9_dk501")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 6, -55)
+gravity_scale = 1.0
 
 [node name="Waypoint" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 3, 125)
