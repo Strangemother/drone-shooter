@@ -152,7 +152,7 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# Positive = nose-down / right-wing-down, matching target and mix.
 	var world_up_body := basis_t * Vector3.UP
 	var current_pitch := atan2(world_up_body.z, world_up_body.y)
-	var current_roll  := atan2(world_up_body.x, world_up_body.y)
+	var current_roll  := atan2(-world_up_body.x, world_up_body.y)
 	var omega_body := basis_t * body.angular_velocity
 
 	# Layer player stick input on top of waypoint commands so the
@@ -175,7 +175,7 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	# ── PID: roll attitude (D on body angular velocity) ───────
 	var roll_correction := _pid_rate(
-		final_roll_target, current_roll, omega_body.z,
+		final_roll_target, current_roll, -omega_body.z,
 		roll_p, roll_i, roll_d, dt,
 		_roll_integral
 	)

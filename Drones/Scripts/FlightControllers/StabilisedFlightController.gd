@@ -130,7 +130,7 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# produces a runaway positive-feedback loop on the pitch axis.
 	var world_up_body := basis_t * Vector3.UP
 	var current_pitch := atan2(world_up_body.z, world_up_body.y)   # + = nose-down
-	var current_roll  := atan2(world_up_body.x, world_up_body.y)   # + = right-wing-down
+	var current_roll  := atan2(-world_up_body.x, world_up_body.y)  # + = right-wing-down
 
 	# Body-frame angular velocity (rad/s about body X / Y / Z).
 	var omega_body := basis_t * body.angular_velocity
@@ -155,9 +155,11 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var pitch_output: float = clampf(pitch_correction.x, -attitude_authority, attitude_authority)
 
 	# ── PID: roll ──────────────────────────────────────────────────
-	# D term uses body-Z angular velocity (positive = rolling right).
+	# Drone rolling right = negative rotation about body-Z (right-hand
+	# rule: +Z takes +X to +Y, i.e. left-wing-up).  So right-wing-down
+	# gives omega_body.z < 0, and we negate to match current_roll's sign.
 	var roll_correction := _pid_rate(
-		target_roll, current_roll, omega_body.z,
+		target_roll, current_roll, -omega_body.z,
 		roll_p, roll_i, roll_d, dt,
 		_roll_integral
 	)
