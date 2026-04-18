@@ -29,22 +29,24 @@ class_name FlightStabilisedController
 # ── PID gains for pitch axis ─────────────────────────────────────
 
 ## Proportional: how hard the correction reacts to current tilt error.
-@export_range(0.0, 5.0, 0.001) var pitch_p: float = 0.6
+## Tuned for ~0.5 kg, 4×45 N thrusters, 0.4 m arms (TWR ~18:1).
+## Lower for snappier but unstable response; raise if drone is heavier.
+@export_range(0.0, 5.0, 0.001) var pitch_p: float = 0.08
 
 ## Integral: accumulates small persistent errors to eliminate steady-state
-## offset (e.g. centre-of-mass asymmetry).  Keep low to avoid wind-up.
-@export_range(0.0, 2.0, 0.001) var pitch_i: float = 0.05
+## offset.  Keep zero on light drones to avoid wind-up.
+@export_range(0.0, 2.0, 0.001) var pitch_i: float = 0.0
 
-## Derivative: damps oscillation by reacting to the rate of change of the
-## error.  Higher = calmer settling, but too high = sluggish.
-@export_range(0.0, 5.0, 0.001) var pitch_d: float = 0.3
+## Derivative: damps oscillation.  Uses derivative-on-measurement so
+## stick movement does NOT produce a kick — only actual rotation does.
+@export_range(0.0, 5.0, 0.001) var pitch_d: float = 0.04
 
 
 # ── PID gains for roll axis ──────────────────────────────────────
 
-@export_range(0.0, 5.0, 0.001) var roll_p: float = 0.6
-@export_range(0.0, 2.0, 0.001) var roll_i: float = 0.05
-@export_range(0.0, 5.0, 0.001) var roll_d: float = 0.3
+@export_range(0.0, 5.0, 0.001) var roll_p: float = 0.08
+@export_range(0.0, 2.0, 0.001) var roll_i: float = 0.0
+@export_range(0.0, 5.0, 0.001) var roll_d: float = 0.04
 
 
 # ── PID gains for vertical (altitude hold) ───────────────────────
@@ -62,6 +64,12 @@ class_name FlightStabilisedController
 ## Integral wind-up clamp — prevents the I term from growing without bound.
 @export_range(0.0, 1.0, 0.01) var integral_limit: float = 0.3
 
+## Hard cap on per-thruster throttle adjustment from attitude PID.
+## This is the CRITICAL safety valve for high-thrust-to-weight drones:
+## it bounds how much differential thrust attitude corrections can command.
+## Roughly equal to hover throttle (mass*g / total_max_force) works well.
+@export_range(0.0, 1.0, 0.001) var attitude_authority: float = 0.1
+
 
 # ── yaw damping ───────────────────────────────────────────────────
 # Thruster force mixing handles pitch & roll through force differential.
@@ -78,10 +86,10 @@ class_name FlightStabilisedController
 # ── internal PID state ────────────────────────────────────────────
 
 var _pitch_integral: float = 0.0
-var _pitch_prev_error: float = 0.0
+var _pitch_prev_angle: float = 0.0
 
 var _roll_integral: float = 0.0
-var _roll_prev_error: float = 0.0
+var _roll_prev_angle: float = 0.0
 
 var _alt_integral: float = 0.0
 var _alt_prev_error: float = 0.0
@@ -93,9 +101,9 @@ var _target_altitude: float = NAN
 
 func reset_state() -> void:
 	_pitch_integral = 0.0
-	_pitch_prev_error = 0.0
+	_pitch_prev_angle = 0.0
 	_roll_integral = 0.0
-	_roll_prev_error = 0.0
+	_roll_prev_angle = 0.0
 	_alt_integral = 0.0
 	_alt_prev_error = 0.0
 	_target_altitude = NAN
@@ -134,25 +142,25 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var target_pitch := pitch_stick * max_tilt_angle
 	var target_roll  := roll_stick * max_tilt_angle
 
-	# ── PID: pitch (outer angle loop) ────────────────────────────
-	var pitch_correction := _pid(
+	# ── PID: pitch (derivative-on-measurement) ──────────────
+	var pitch_correction := _pid_dom(
 		target_pitch, current_pitch,
 		pitch_p, pitch_i, pitch_d, dt,
-		_pitch_integral, _pitch_prev_error
+		_pitch_integral, _pitch_prev_angle
 	)
 	_pitch_integral = pitch_correction.y
-	_pitch_prev_error = pitch_correction.z
-	var pitch_output: float = pitch_correction.x
+	_pitch_prev_angle = pitch_correction.z
+	var pitch_output: float = clampf(pitch_correction.x, -attitude_authority, attitude_authority)
 
-	# ── PID: roll (outer angle loop) ─────────────────────────────
-	var roll_correction := _pid(
+	# ── PID: roll (derivative-on-measurement) ───────────────
+	var roll_correction := _pid_dom(
 		target_roll, current_roll,
 		roll_p, roll_i, roll_d, dt,
-		_roll_integral, _roll_prev_error
+		_roll_integral, _roll_prev_angle
 	)
 	_roll_integral = roll_correction.y
-	_roll_prev_error = roll_correction.z
-	var roll_output: float = roll_correction.x
+	_roll_prev_angle = roll_correction.z
+	var roll_output: float = clampf(roll_correction.x, -attitude_authority, attitude_authority)
 
 	# ── yaw damping ───────────────────────────────────────────────────
 	# Thrusters firing along body-UP cannot produce yaw torque by mixing.
@@ -228,6 +236,27 @@ func _pid(
 
 	var output := (kp * error) + (ki * integral) + (kd * derivative)
 	return Vector3(output, integral, error)
+
+
+## Derivative-on-measurement PID.  Uses the rate of change of the
+## *measured* value, not the error — so a step change in target
+## (the player yanking the stick) does not cause a derivative kick.
+## Returns Vector3(output, updated_integral, updated_prev_angle).
+func _pid_dom(
+	target: float, current: float,
+	kp: float, ki: float, kd: float, dt: float,
+	integral: float, prev_angle: float
+) -> Vector3:
+	var error := target - current
+
+	integral += error * dt
+	integral = clampf(integral, -integral_limit, integral_limit)
+
+	# Note the sign: D acts against the direction of motion, so
+	# subtract kd * (rate of change of measurement).
+	var measurement_rate := (current - prev_angle) / dt
+	var output := (kp * error) + (ki * integral) - (kd * measurement_rate)
+	return Vector3(output, integral, current)
 
 
 func _hover_throttle(body: RigidBody3D, total_max: float) -> float:
