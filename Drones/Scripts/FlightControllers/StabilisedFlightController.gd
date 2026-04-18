@@ -184,7 +184,7 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var pitch_err := target_pitch - current_pitch
 	var roll_err  := target_roll - current_roll
 	var target_omega := Vector3(
-		clampf(-angle_to_rate * pitch_err, -max_body_rate, max_body_rate),
+		clampf(angle_to_rate * pitch_err, -max_body_rate, max_body_rate),
 		yaw_stick * max_yaw_rate,
 		clampf(angle_to_rate * roll_err, -max_body_rate, max_body_rate)
 	)
