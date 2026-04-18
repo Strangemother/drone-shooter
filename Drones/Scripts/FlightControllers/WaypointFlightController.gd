@@ -181,11 +181,8 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	_roll_prev_error = roll_correction.z
 	var roll_output: float = roll_correction.x
 
-	# ── yaw damping via direct torque (pitch/roll handled by mix) ─
-	var yaw_rate_target := yaw_stick * max_yaw_rate
-	var yaw_rate_error  := yaw_rate_target - omega_body.y
-	var yaw_torque_body := Vector3(0.0, rate_p * yaw_rate_error, 0.0)
-	body.apply_torque(basis * yaw_torque_body)
+	# ── no yaw torque — let RigidBody3D.angular_damp handle residual spin ─
+	var _ignore := yaw_stick
 
 	# ── collective: hover + altitude tracking to waypoint Y ──────
 	var collective := _hover_throttle(body, total_max)

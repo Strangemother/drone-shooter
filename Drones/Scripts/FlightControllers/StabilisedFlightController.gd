@@ -154,17 +154,14 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	_roll_prev_error = roll_correction.z
 	var roll_output: float = roll_correction.x
 
-	# ── yaw damping via direct torque ────────────────────────────
-	# Thruster force mixing already produces pitch/roll torque through
-	# the force differential, so we do NOT add torque on those axes
-	# (the two would fight and can go unstable).  Yaw, however, cannot
-	# be produced by thrusters pointing along body-UP — so we damp it
-	# here with a simple rate controller: command a target yaw rate
-	# from player input, and apply torque proportional to the error.
-	var yaw_rate_target := yaw_stick * max_yaw_rate
-	var yaw_rate_error  := yaw_rate_target - omega_body.y
-	var yaw_torque_body := Vector3(0.0, rate_p * yaw_rate_error, 0.0)
-	body.apply_torque(basis * yaw_torque_body)
+	# ── yaw damping ───────────────────────────────────────────────────
+	# Thrusters firing along body-UP cannot produce yaw torque by mixing.
+	# Rather than fight the solver with apply_torque (which can go unstable
+	# at low body inertia), set `angular_damp` to ~3.0 on the drone's
+	# RigidBody3D in the inspector — the physics engine will damp any
+	# residual spin for free.  Leave this controller silent on yaw until
+	# a dedicated yaw actuator is present.
+	var _ignore := yaw_stick  # keep the variable in scope for future use
 
 	# ── collective: hover baseline + altitude hold PID ───────────
 	var collective := _hover_throttle(body, total_max)
