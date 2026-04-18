@@ -25,6 +25,10 @@ tonemap_mode = 2
 glow_enabled = true
 
 [sub_resource type="SphereMesh" id="SphereMesh_0ldo7"]
+radius = 0.25
+height = 0.5
+radial_segments = 17
+rings = 8
 
 [node name="TemplateMap" type="Node3D"]
 script = ExtResource("1_k1n2p")

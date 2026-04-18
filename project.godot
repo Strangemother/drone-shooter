@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Drone Shooter"
-run/main_scene="uid://bwqrfifgj21e"
+run/main_scene="uid://ddjo04acimqx3"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
