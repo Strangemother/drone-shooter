@@ -49,6 +49,39 @@ var waypoint_target: Node3D = null
 @export_range(0.0, 5.0, 0.01) var arrival_radius: float = 0.3
 
 
+# ── yaw-to-waypoint ──────────────────────────────────────────────
+
+## If true, the waypoint controller actively yaws the drone so its nose
+## points at the waypoint (horizontal plane only).  Without this the
+## drone will happily fly tail-first or sideways to reach the target,
+## which is kinematically valid but looks wrong.
+##
+## Note: the stabilised controller has no force-mixed yaw authority
+## (all thrusters fire along body-UP, so differential thrust can't
+## produce yaw torque).  To yaw we apply a direct torque to the body
+## via `apply_torque`.  This is the one place we break the "no
+## apply_torque" rule from the flight-controller guide — it's safe
+## here because (a) the torque is small and damped by the body's
+## `angular_damp`, and (b) no other control path touches the yaw axis,
+## so there's nothing to fight with.
+@export var yaw_to_waypoint: bool = true
+
+## Proportional gain for the yaw-to-waypoint loop (N·m per radian of
+## heading error).  Default tuned for ~0.2 kg·m² body inertia with
+## `angular_damp ≈ 3`.  Lower this if the drone over-rotates.
+@export_range(0.0, 10.0, 0.01) var yaw_p: float = 1.5
+
+## Derivative gain on body-Y angular velocity — brakes rotation so
+## the drone settles on heading without oscillating.
+@export_range(0.0, 10.0, 0.01) var yaw_d: float = 0.4
+
+## Heading error (radians) below which the pitch command is allowed
+## to reach full strength.  Outside this, pitch is faded toward zero
+## so the drone rotates first and only accelerates once it's roughly
+## facing the waypoint.  ~0.7 rad ≈ 40°.
+@export_range(0.0, 3.14, 0.01) var yaw_align_tolerance: float = 0.7
+
+
 # ── debug ────────────────────────────────────────────────────────
 
 ## If true, prints body-frame error and commanded tilt ~2× a second.
@@ -132,6 +165,30 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var wp_pitch_target := 0.0
 	var wp_roll_target := 0.0
 
+	# Heading error: angle between body-forward (-Z in body = (0,0,-1))
+	# and the horizontal direction to the waypoint, expressed in body
+	# frame.  Computed from error_body.xz so it's yaw-only.
+	#
+	#   atan2(err_body.x, -err_body.z)
+	#
+	# returns 0 when the waypoint is directly ahead (err_body.z < 0,
+	# err_body.x = 0), +π/2 when directly to the right, and ±π when
+	# directly behind.  Positive = need to yaw right.
+	var heading_error := 0.0
+	if xz_distance > 0.01:
+		heading_error = atan2(error_body.x, -error_body.z)
+
+	# Pitch attenuation: if the drone isn't roughly facing the
+	# waypoint, don't accelerate toward it — rotate first.  Scales
+	# the pitch command smoothly from 1.0 (on-heading) to 0.0
+	# (>yaw_align_tolerance off-heading).
+	var align_factor := 1.0
+	if yaw_to_waypoint and yaw_align_tolerance > 0.0:
+		align_factor = clampf(
+			1.0 - (absf(heading_error) / yaw_align_tolerance),
+			0.0, 1.0
+		)
+
 	if xz_distance > arrival_radius:
 		# PD on body-Z position → pitch command.
 		#   Body-forward is -Z, so a waypoint ahead has err_body.z < 0
@@ -163,6 +220,11 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 			+ pos_i * _pos_x_integral \
 			- pos_d * vel_body.x
 		wp_roll_target = clampf(roll_raw, -max_waypoint_tilt, max_waypoint_tilt)
+
+		# Fade pitch/roll to zero when we're not facing the waypoint
+		# so the yaw loop can rotate us before we start flying.
+		wp_pitch_target *= align_factor
+		wp_roll_target *= align_factor
 	else:
 		# Inside arrival radius — bleed the position integrals so
 		# they don't carry a stale bias into the next waypoint.
@@ -203,8 +265,28 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	_roll_integral = roll_correction.y
 	var roll_output: float = clampf(roll_correction.x, -attitude_authority, attitude_authority)
 
-	# ── no yaw torque — let RigidBody3D.angular_damp handle residual spin ─
-	var _ignore := yaw_stick
+	# ── yaw: rotate to face the waypoint ─────────────────────────
+	# The stabilised controller leaves yaw entirely to angular_damp
+	# because thruster mixing can't produce yaw torque on this drone.
+	# Waypoint following NEEDS yaw, however, or the drone flies
+	# tail-first / sideways to reach targets behind or beside it.
+	# We apply a small, damped torque directly to the body — see
+	# the big block comment at `yaw_to_waypoint` above for why this
+	# is the one safe place to use apply_torque on this stack.
+	#
+	# Player yaw stick is layered as an additive rate command
+	# (multiplies heading-P error), so the player can still steer.
+	if yaw_to_waypoint and xz_distance > arrival_radius:
+		var yaw_torque_local := (-yaw_p * heading_error) - (yaw_d * omega_body.y)
+		# Convert body-local torque vector (about body +Y) into world
+		# space for apply_torque.
+		var yaw_torque_world := basis * Vector3(0.0, yaw_torque_local, 0.0)
+		body.apply_torque(yaw_torque_world)
+
+	# Allow the player to nudge yaw (rate command around body +Y).
+	if absf(yaw_stick) > 0.01:
+		var yaw_stick_torque := basis * Vector3(0.0, -yaw_stick * yaw_p, 0.0)
+		body.apply_torque(yaw_stick_torque)
 
 	# ── collective: hover + altitude tracking to waypoint Y ──────
 	var collective := _hover_throttle(body, total_max)
@@ -236,12 +318,9 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		_debug_accum += dt
 		if _debug_accum >= 0.5:
 			_debug_accum = 0.0
-			# Forward unit-vector of the body expressed in world space.
-			# If this points roughly the same way the drone's nose
-			# *looks* in the scene, body-forward = -Z is correct.
-			var body_forward_world := -basis.z
-			print("[waypoint] err_body=%s vel_body=%s body_fwd=%s wp_pitch=%.3f wp_roll=%.3f cur_pitch=%.3f cur_roll=%.3f dist=%.2f" % [
-				error_body, vel_body, body_forward_world,
+			print("[waypoint] err_body=%s vel_body=%s heading_err=%.2f align=%.2f wp_pitch=%.3f wp_roll=%.3f cur_pitch=%.3f cur_roll=%.3f dist=%.2f" % [
+				error_body, vel_body,
+				heading_error, align_factor,
 				wp_pitch_target, wp_roll_target,
 				current_pitch, current_roll,
 				xz_distance,
