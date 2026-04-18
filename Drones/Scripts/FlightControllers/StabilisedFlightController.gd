@@ -9,7 +9,7 @@
 ## no wobble, no drift.  Player stick input sets a *target tilt angle*
 ## rather than a raw throttle differential, and the PID loop flies to that
 ## angle.  This is the "angle mode" used by Betaflight / real quads.
-extends FlightController
+extends FlightControllerBase
 
 class_name FlightStabilisedController
 

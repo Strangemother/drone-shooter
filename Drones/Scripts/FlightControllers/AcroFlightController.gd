@@ -2,7 +2,7 @@
 ## No auto-hover — collective starts at zero and the player supplies all
 ## throttle.  Pitch and roll mix differentially the same way as Angle
 ## but without a gravity baseline.  Cut throttle and it drops.
-extends FlightController
+extends FlightControllerBase
 
 class_name FlightAcroController
 

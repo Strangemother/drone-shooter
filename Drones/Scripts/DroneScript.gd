@@ -8,7 +8,7 @@ var thrusters: Array[Node] = []
 ## The active flight controller child (FlightAngleController, FlightAcroController, etc).
 ## If null the drone is in "raw" mode — no automatic mixing, you set
 ## each thruster's throttle yourself from external code.
-var flight_controller: FlightController
+var flight_controller: FlightControllerBase
 
 
 func _ready() -> void:
@@ -37,10 +37,10 @@ func _collect_thrusters() -> void:
 		push_warning("DroneScene has no mounted thrusters.")
 
 
-## Finds the first FlightController child.  Returns null for raw mode.
-func _find_flight_controller() -> FlightController:
+## Finds the first FlightControllerBase child.  Returns null for raw mode.
+func _find_flight_controller() -> FlightControllerBase:
 	for child in get_children():
-		if child is FlightController:
+		if child is FlightControllerBase:
 			return child
 	return null
 
