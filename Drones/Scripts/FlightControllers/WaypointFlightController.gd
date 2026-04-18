@@ -1,6 +1,6 @@
 ## Waypoint flight controller — flies the drone to a target Node3D position.
 ##
-## Extends StabilisedFlightController: inherits PID attitude stabilisation
+## Extends FlightStabilisedController: inherits PID attitude stabilisation
 ## and altitude hold, and adds XZ position tracking.  The position error
 ## (how far the drone is from the waypoint) is converted into target tilt
 ## angles that the existing pitch/roll PID loops fly to.
@@ -11,10 +11,10 @@
 ##   • From anywhere: get_tree().call_group("drones", "set_waypoint", node)
 ##
 ## When no waypoint is set the controller behaves identically to the
-## StabilisedFlightController (hover in place, respond to player input).
-extends StabilisedFlightController
+## FlightStabilisedController (hover in place, respond to player input).
+extends FlightStabilisedController
 
-class_name WaypointFlightController
+class_name FlightWaypointController
 
 
 # ── waypoint target ───────────────────────────────────────────────

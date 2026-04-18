@@ -5,7 +5,7 @@
 ## thruster's throttle directly.
 extends Node
 
-class_name DroneFlightController
+class_name FlightController
 
 ## Input action names — must match entries in Project > Input Map.
 ## Change these to remap controls without editing code.

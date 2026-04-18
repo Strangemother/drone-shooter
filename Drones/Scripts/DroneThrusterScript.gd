@@ -1,6 +1,6 @@
 extends Node3D
 
-class_name DroneThrusterScript
+class_name FlightThruster
 
 @export_node_path("RigidBody3D") var target_body_path: NodePath = NodePath("..")
 @export_range(0.0, 500.0, 0.1) var max_force: float = 45.0

@@ -2,9 +2,9 @@
 ## Auto-hovers at the throttle level needed to counteract gravity.
 ## Player input adjusts collective, pitch, and roll around that baseline.
 ## This is the DJI / consumer-drone feel.
-extends DroneFlightController
+extends FlightController
 
-class_name AngleFlightController
+class_name FlightAngleController
 
 ## Subtracted from project gravity when computing hover thrust.
 ## At 0 the drone must fight full gravity; match project gravity to hover free.

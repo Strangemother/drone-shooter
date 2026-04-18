@@ -2,9 +2,9 @@
 ## No auto-hover — collective starts at zero and the player supplies all
 ## throttle.  Pitch and roll mix differentially the same way as Angle
 ## but without a gravity baseline.  Cut throttle and it drops.
-extends DroneFlightController
+extends FlightController
 
-class_name AcroFlightController
+class_name FlightAcroController
 
 ## Full range of collective the player can command (0..1).
 ## At 1.0 the player has access to the entire throttle sweep.

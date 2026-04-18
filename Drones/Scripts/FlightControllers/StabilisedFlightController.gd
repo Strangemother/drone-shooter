@@ -1,6 +1,6 @@
 ## PID-stabilised "Angle" flight controller.
 ##
-## Like AngleFlightController but with a feedback loop: the drone measures
+## Like FlightAngleController but with a feedback loop: the drone measures
 ## its actual pitch and roll every physics tick and drives them back toward
 ## level (or toward a player-commanded tilt angle).  It also damps vertical
 ## velocity so the drone holds a steady altitude rather than drifting.
@@ -9,9 +9,9 @@
 ## no wobble, no drift.  Player stick input sets a *target tilt angle*
 ## rather than a raw throttle differential, and the PID loop flies to that
 ## angle.  This is the "angle mode" used by Betaflight / real quads.
-extends DroneFlightController
+extends FlightController
 
-class_name StabilisedFlightController
+class_name FlightStabilisedController
 
 
 # ── hover & collective ────────────────────────────────────────────

@@ -5,10 +5,10 @@ extends RigidBody3D
 ## The discovered thruster nodes (children in "vehicle_thrusters" group).
 var thrusters: Array[Node] = []
 
-## The active flight controller child (AngleFlightController, AcroFlightController, etc).
+## The active flight controller child (FlightAngleController, FlightAcroController, etc).
 ## If null the drone is in "raw" mode — no automatic mixing, you set
 ## each thruster's throttle yourself from external code.
-var flight_controller: DroneFlightController
+var flight_controller: FlightController
 
 
 func _ready() -> void:
@@ -37,10 +37,10 @@ func _collect_thrusters() -> void:
 		push_warning("DroneScene has no mounted thrusters.")
 
 
-## Finds the first DroneFlightController child.  Returns null for raw mode.
-func _find_flight_controller() -> DroneFlightController:
+## Finds the first FlightController child.  Returns null for raw mode.
+func _find_flight_controller() -> FlightController:
 	for child in get_children():
-		if child is DroneFlightController:
+		if child is FlightController:
 			return child
 	return null
 
