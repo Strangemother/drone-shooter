@@ -15,6 +15,8 @@ class_name FlightController
 @export var pitch_backward_action: StringName = &"moveBackward"
 @export var roll_left_action: StringName = &"moveLeft"
 @export var roll_right_action: StringName = &"moveRight"
+@export var yaw_left_action: StringName = &""
+@export var yaw_right_action: StringName = &""
 
 
 ## Called every physics tick by DroneScript with the vehicle body and

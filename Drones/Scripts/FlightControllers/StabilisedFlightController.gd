@@ -63,6 +63,30 @@ class_name FlightStabilisedController
 @export_range(0.0, 1.0, 0.01) var integral_limit: float = 0.3
 
 
+# ── rate damping (inner loop) ─────────────────────────────────────
+# A cascaded rate loop runs on top of the angle loop: angle error
+# commands a desired angular rate, rate error commands a torque.
+# This damps all three body axes and is what makes yaw recoverable
+# even when the thruster geometry can't produce yaw torque via mixing.
+
+## Converts angle error into a target angular rate (rad/s per rad).
+## Higher = snappier angle tracking but risks overshoot.
+@export_range(0.0, 20.0, 0.1) var angle_to_rate: float = 6.0
+
+## Max body rate the angle loop may command (rad/s).
+@export_range(0.0, 20.0, 0.1) var max_body_rate: float = 6.0
+
+## Rate loop proportional gain (torque per rad/s of rate error).
+## This is what produces the actual damping against spin.
+@export_range(0.0, 50.0, 0.1) var rate_p: float = 8.0
+
+## Rate loop derivative (damps rate-of-change of rate error).
+@export_range(0.0, 10.0, 0.01) var rate_d: float = 0.5
+
+## Player yaw input command range (rad/s).
+@export_range(0.0, 10.0, 0.1) var max_yaw_rate: float = 3.0
+
+
 # ── internal PID state ────────────────────────────────────────────
 
 var _pitch_integral: float = 0.0
@@ -73,6 +97,9 @@ var _roll_prev_error: float = 0.0
 
 var _alt_integral: float = 0.0
 var _alt_prev_error: float = 0.0
+
+## Previous body-frame angular velocity — for rate-loop derivative.
+var _prev_rate_err: Vector3 = Vector3.ZERO
 
 ## Captured on first update — the altitude the drone should hold when
 ## the player gives no vertical input.
@@ -86,6 +113,7 @@ func reset_state() -> void:
 	_roll_prev_error = 0.0
 	_alt_integral = 0.0
 	_alt_prev_error = 0.0
+	_prev_rate_err = Vector3.ZERO
 	_target_altitude = NAN
 
 
@@ -100,32 +128,39 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	# ── read current state from the rigid body ───────────────────
 	var basis := body.global_transform.basis
+	var basis_t := basis.transposed()  # orthonormal inverse — world→body
 
-	# Current tilt angles: how far the body's local UP has tilted
-	# from world UP, decomposed into pitch (rotation around X) and
-	# roll (rotation around Z).
-	var local_up := basis.y
-	var current_pitch := atan2(-local_up.z, local_up.y)  # nose-down = positive
-	var current_roll  := atan2(local_up.x, local_up.y)   # right-wing-down = positive
+	# Measure tilt in the BODY frame so it stays consistent with the
+	# thruster mix (which is also computed in body frame).  Using
+	# world-frame tilt here causes pitch/roll to couple through yaw
+	# and produces a runaway spin as soon as the drone isn't facing
+	# world-forward.
+	var world_up_body := basis_t * Vector3.UP
+	var current_pitch := atan2(-world_up_body.z, world_up_body.y)  # rotation about body-X
+	var current_roll  := atan2(world_up_body.x, world_up_body.y)   # rotation about body-Z
+
+	# Body-frame angular velocity (rad/s about body X / Y / Z).
+	var omega_body := basis_t * body.angular_velocity
 
 	# ── target angles from player input ──────────────────────────
 	var pitch_stick := get_axis_value(pitch_backward_action, pitch_forward_action)
 	var roll_stick  := get_axis_value(roll_left_action, roll_right_action)
+	var yaw_stick   := get_axis_value(yaw_left_action, yaw_right_action)
 
 	var target_pitch := pitch_stick * max_tilt_angle
 	var target_roll  := roll_stick * max_tilt_angle
 
-	# ── PID: pitch ───────────────────────────────────────────────
+	# ── PID: pitch (outer angle loop) ────────────────────────────
 	var pitch_correction := _pid(
 		target_pitch, current_pitch,
 		pitch_p, pitch_i, pitch_d, dt,
 		_pitch_integral, _pitch_prev_error
 	)
-	_pitch_integral = pitch_correction.y   # updated integral
-	_pitch_prev_error = pitch_correction.z # updated prev_error
+	_pitch_integral = pitch_correction.y
+	_pitch_prev_error = pitch_correction.z
 	var pitch_output: float = pitch_correction.x
 
-	# ── PID: roll ────────────────────────────────────────────────
+	# ── PID: roll (outer angle loop) ─────────────────────────────
 	var roll_correction := _pid(
 		target_roll, current_roll,
 		roll_p, roll_i, roll_d, dt,
@@ -134,6 +169,33 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	_roll_integral = roll_correction.y
 	_roll_prev_error = roll_correction.z
 	var roll_output: float = roll_correction.x
+
+	# ── inner rate loop: angle error → body-rate target → torque ─
+	# The angle PID above drives thruster mixing; the rate loop
+	# below applies a direct stabilising torque.  Together they form
+	# a proper cascaded controller that stays stable regardless of
+	# yaw orientation and also damps yaw spin (which thruster
+	# mixing alone cannot).
+	#
+	# Target body rates (rad/s) about body X (pitch), Y (yaw), Z (roll).
+	# Sign note: a positive "current_pitch" (nose-down tilt) is produced
+	# by a negative rotation about body-X, so the pitch rate target is
+	# negated here to agree with the body-X axis convention.
+	var pitch_err := target_pitch - current_pitch
+	var roll_err  := target_roll - current_roll
+	var target_omega := Vector3(
+		clampf(-angle_to_rate * pitch_err, -max_body_rate, max_body_rate),
+		yaw_stick * max_yaw_rate,
+		clampf(angle_to_rate * roll_err, -max_body_rate, max_body_rate)
+	)
+
+	var rate_err := target_omega - omega_body
+	var rate_deriv := (rate_err - _prev_rate_err) / dt
+	_prev_rate_err = rate_err
+
+	# Body-frame stabilising torque, then rotate to world for apply_torque.
+	var torque_body := rate_p * rate_err + rate_d * rate_deriv
+	body.apply_torque(basis * torque_body)
 
 	# ── collective: hover baseline + altitude hold PID ───────────
 	var collective := _hover_throttle(body, total_max)

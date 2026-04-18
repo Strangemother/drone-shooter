@@ -104,15 +104,16 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	if dt <= 0.0:
 		return
 
-	# ── position error in world space ────────────────────────────
+	# ── position error, rotated into body frame ──────────────────
+	# The attitude loop works in body frame, so the position error
+	# must be too — otherwise pitch/roll commands become wrong as
+	# soon as the drone yaws away from world-forward.
 	var target_pos := waypoint_target.global_position
 	var body_pos := body.global_position
 	var error_world := target_pos - body_pos
-
-	# Work in world XZ directly — the attitude PID measures tilt
-	# relative to world UP, so the position error must also be in
-	# world space.  Converting to body-local causes the error to
-	# rotate as the drone tilts, creating a runaway feedback loop.
+	var basis := body.global_transform.basis
+	var basis_t := basis.transposed()
+	var error_body := basis_t * error_world
 
 	# ── if within arrival radius, just stabilise in place ────────
 	var xz_distance := Vector2(error_world.x, error_world.z).length()
@@ -120,12 +121,13 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var wp_roll_target := 0.0
 
 	if xz_distance > arrival_radius:
-		# Position PID on each world axis → target tilt angle.
-		# _pid returns (0 - current) so for Z: output ∝ −error_world.z
-		# Positive pitch = nose down = accelerates in −Z, which is
-		# exactly what −error_world.z gives us, so use the output directly.
+		# Position PID on each body axis → target tilt angle.
+		# Body +Z points backward (Godot convention), so a target
+		# ahead of us has negative body-Z; nose-down pitch
+		# (positive target) accelerates us along -body-Z — hence
+		# we feed -error_body.z as the pitch reference.
 		var pitch_correction := _pid(
-			0.0, error_world.z,
+			0.0, -error_body.z,
 			pos_p, pos_i, pos_d, dt,
 			_pos_z_integral, _pos_z_prev_error
 		)
@@ -133,11 +135,10 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		_pos_z_prev_error = pitch_correction.z
 		wp_pitch_target = clampf(pitch_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
 
-		# Positive X error (target to the right) needs positive roll
-		# (tilt right).  _pid(0, x) output ∝ −x, so we negate the
-		# output to get the correct sign: +X error → +roll.
+		# Positive body-X error (target to the right) needs positive
+		# roll (tilt right).  _pid(0, x) output ∝ −x, so negate.
 		var roll_correction := _pid(
-			0.0, error_world.x,
+			0.0, error_body.x,
 			pos_p, pos_i, pos_d, dt,
 			_pos_x_integral, _pos_x_prev_error
 		)
@@ -145,15 +146,17 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		_pos_x_prev_error = roll_correction.z
 		wp_roll_target = clampf(-roll_correction.x, -max_waypoint_tilt, max_waypoint_tilt)
 
-	# ── attitude: current tilt angles ────────────────────────────
-	var local_up := body.global_transform.basis.y
-	var current_pitch := atan2(-local_up.z, local_up.y)
-	var current_roll  := atan2(local_up.x, local_up.y)
+	# ── attitude: current tilt angles (body frame) ───────────────
+	var world_up_body := basis_t * Vector3.UP
+	var current_pitch := atan2(-world_up_body.z, world_up_body.y)
+	var current_roll  := atan2(world_up_body.x, world_up_body.y)
+	var omega_body := basis_t * body.angular_velocity
 
 	# Layer player stick input on top of waypoint commands so the
 	# player can nudge while tracking.
 	var stick_pitch := get_axis_value(pitch_backward_action, pitch_forward_action) * max_tilt_angle
 	var stick_roll  := get_axis_value(roll_left_action, roll_right_action) * max_tilt_angle
+	var yaw_stick   := get_axis_value(yaw_left_action, yaw_right_action)
 
 	var final_pitch_target := clampf(wp_pitch_target + stick_pitch, -max_tilt_angle, max_tilt_angle)
 	var final_roll_target  := clampf(wp_roll_target + stick_roll, -max_tilt_angle, max_tilt_angle)
@@ -177,6 +180,20 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	_roll_integral = roll_correction.y
 	_roll_prev_error = roll_correction.z
 	var roll_output: float = roll_correction.x
+
+	# ── inner rate loop: body-rate target → stabilising torque ───
+	var pitch_err := final_pitch_target - current_pitch
+	var roll_err  := final_roll_target - current_roll
+	var target_omega := Vector3(
+		clampf(-angle_to_rate * pitch_err, -max_body_rate, max_body_rate),
+		yaw_stick * max_yaw_rate,
+		clampf(angle_to_rate * roll_err, -max_body_rate, max_body_rate)
+	)
+	var rate_err := target_omega - omega_body
+	var rate_deriv := (rate_err - _prev_rate_err) / dt
+	_prev_rate_err = rate_err
+	var torque_body := rate_p * rate_err + rate_d * rate_deriv
+	body.apply_torque(basis * torque_body)
 
 	# ── collective: hover + altitude tracking to waypoint Y ──────
 	var collective := _hover_throttle(body, total_max)
