@@ -53,8 +53,6 @@ class_name FlightThruster
 ## 0 to disable spool-down (snaps instantly to lower values).
 @export_range(0.0, 5.0, 0.001) var spool_down_time: float = 0.12
 
-@export_group("Ground Effect")
-
 ## Enable in-ground-effect (IGE) thrust augmentation.  When the
 ## downward-facing raycast (see `ground_ray_path`) sees a surface
 ## close enough, the thruster's output is boosted per the
@@ -104,6 +102,12 @@ class_name FlightThruster
 ## The final value is still clamped to `ground_effect_max`, so push
 ## that cap up too if you want the overdriven boost to actually land.
 @export_range(0.0, 10.0, 0.01) var ground_effect_gain: float = 1.0
+
+## Print per-physics-tick diagnostics for this thruster's ground
+## effect: ray-hit state, measured height, and computed multiplier.
+## Leave off in shipped builds — it's noisy.  Useful for confirming
+## the ray is actually hitting the ground layer during tuning.
+@export var ground_effect_debug: bool = false
 
 var target_body: RigidBody3D
 var _ground_ray: RayCast3D
@@ -178,7 +182,15 @@ func _physics_process(delta: float) -> void:
 func _compute_ground_effect_multiplier() -> float:
 	if not ground_effect_enabled:
 		return 1.0
-	if _ground_ray == null or not _ground_ray.is_colliding():
+	if _ground_ray == null:
+		if ground_effect_debug:
+			print("[GE %s] no RayCast3D at %s" % [name, ground_ray_path])
+		return 1.0
+	if not _ground_ray.is_colliding():
+		if ground_effect_debug:
+			print("[GE %s] ray not colliding (enabled=%s mask=%d)" % [
+				name, _ground_ray.enabled, _ground_ray.collision_mask
+			])
 		return 1.0
 
 	var h: float = global_position.distance_to(_ground_ray.get_collision_point())
@@ -186,18 +198,27 @@ func _compute_ground_effect_multiplier() -> float:
 	# Treat anything closer than a quarter-radius as the cap.
 	var h_min: float = ground_effect_radius * 0.25
 	if h < h_min:
+		if ground_effect_debug:
+			print("[GE %s] h=%.3f < h_min=%.3f → max=%.2f" % [name, h, h_min, ground_effect_max])
 		return ground_effect_max
 
 	var ratio: float = ground_effect_radius / (4.0 * h)
 	var denom: float = 1.0 - ratio * ratio
 	if denom <= 0.0:
+		if ground_effect_debug:
+			print("[GE %s] denom<=0 at h=%.3f → max=%.2f" % [name, h, ground_effect_max])
 		return ground_effect_max
 
 	var raw: float = 1.0 / denom
 	# Overdrive: scale just the boost (raw − 1), keeping the floor at 1.0
 	# so "no effect" is still exactly 1.0 regardless of gain.
 	var boosted: float = 1.0 + ground_effect_gain * (raw - 1.0)
-	return clampf(boosted, 1.0, ground_effect_max)
+	var result: float = clampf(boosted, 1.0, ground_effect_max)
+	if ground_effect_debug:
+		print("[GE %s] h=%.3f raw=%.3f boosted=%.3f mult=%.3f hit=%s" % [
+			name, h, raw, boosted, result, _ground_ray.get_collider()
+		])
+	return result
 
 
 ## Set throttle in [0, 1].  Direction stays whatever `force_axis` was.
