@@ -95,6 +95,19 @@ class_name FlightFpsController
 ## wins and this has no effect.  Set to 0 to disable.
 @export_range(0.0, 1.0, 0.001) var yaw_idle_thrust: float = 0.15
 
+## How much the yaw tilt is attenuated when the player is also
+## commanding translation thrust.  At 0.0 the tilt angle is constant
+## regardless of throttle (original behaviour).  At 1.0 the tilt
+## fades linearly to zero as base-thrust magnitude rises toward 1,
+## pushing almost all yaw authority onto the idle-thrust path.
+##
+## Rationale: the tilt-and-idle combo gives the most drone-like feel
+## at low throttle; when the player is already pushing hard, the
+## extra tilt stacks on top of high thrust and over-rotates.  Biasing
+## yaw toward the idle path keeps the response consistent across the
+## throttle range.
+@export_range(0.0, 1.0, 0.001) var yaw_throttle_attenuation: float = 0.6
+
 
 # Rest basis of each motor, captured the first time we see it.
 # We rebuild each motor's transform from its rest state every
@@ -164,6 +177,14 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var yaw_angle: float = yaw * yaw_tilt_angle
 	if invert_yaw:
 		yaw_angle = -yaw_angle
+
+	# Attenuate tilt in proportion to player-commanded translation
+	# thrust.  `magnitude` here is the pre-idle base-thrust magnitude
+	# (i.e. how hard the player is pushing translation stick inputs),
+	# so attenuation is driven purely by the player's own throttle
+	# and does not self-cancel against the yaw idle we just added.
+	if yaw_throttle_attenuation > 0.0 and magnitude > 0.0:
+		yaw_angle *= 1.0 - yaw_throttle_attenuation * magnitude
 
 	for t in thrusters:
 		if not (t is Node3D):
