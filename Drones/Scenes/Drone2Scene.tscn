@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://c3yiv13mript5" path="res://Drones/Scripts/DroneScript.gd" id="1_q7bwi"]
 [ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="2_85430"]
 [ext_resource type="Script" uid="uid://c1pwn6awbtwn0" path="res://Drones/Scripts/DroneThrusterScript.gd" id="3_0vxhe"]
-[ext_resource type="Script" uid="uid://btsxm6w85nrte" path="res://Drones/Scripts/FlightControllers/FpsFlightController.gd" id="4_q7bwi"]
+[ext_resource type="Script" uid="uid://bcp20udj0xh8e" path="res://Drones/Scripts/FlightControllers/QuadFlightController.gd" id="4_q7bwi"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
 size = Vector3(0.8, 0.639, 1.466)
@@ -49,6 +49,7 @@ max_force = 3.0
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
+yaw_reaction_torque = 2.0
 yaw_tilt_angle = 0.25
 yaw_idle_thrust = 0.25
 yaw_throttle_attenuation = 0.7
