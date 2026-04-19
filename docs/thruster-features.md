@@ -66,7 +66,8 @@ Next more details on force method (exterior affects).
     With drones, prop wash _shudders_ the vehicle. With rockets, the prop wash can affect other vehicles.
 - Force Fountain
     An engine close to the ground can create a force fountain, a cushion of air between the engine and the ground. All ground firing engines have this affect.
-- Power Ramp
+- Power Ramp ✅ *(implemented on `FlightThruster` — see
+  [quad-flight-controller-guide.md §7](quad-flight-controller-guide.md))*
     Some engnes have a delay between when they are commanded to produce force. This may be due to mass, fuel flow, or other factors. 
 - Footplate
     An engine close to the ground can create a footplate, a cushion of air between the engine and the ground. This is a more extreme version of the force fountain, where the engine is close enough to the ground to create a solid cushion of air.
