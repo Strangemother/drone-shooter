@@ -70,10 +70,11 @@ class_name FlightThruster
 @export var ground_effect_enabled: bool = true
 
 ## Path to the downward-pointing RayCast3D used to measure height
-## above ground.  Defaults to a sibling or child called "RayCast3D".
+## above ground.  Defaults to a sibling or child called
+## "FootRayCast3D" (as named in `thruster_collision_shape.tscn`).
 ## The ray's `target_position` sets the maximum detection distance;
 ## if the ray isn't colliding, ground effect is off (multiplier = 1).
-@export_node_path("RayCast3D") var ground_ray_path: NodePath = NodePath("RayCast3D")
+@export_node_path("RayCast3D") var ground_ray_path: NodePath = NodePath("FootRayCast3D")
 
 ## Effective rotor radius R (metres).  Used as the scaling length in
 ## the Cheeseman–Bennett formula.  A good default is the visible
