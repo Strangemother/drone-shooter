@@ -12,3 +12,6 @@
 - [multi-waypoint-design-brief.md](multi-waypoint-design-brief.md) — design brief
   for the not-yet-built multi-waypoint path follower. Read before starting that work.
 - [thruster-features.md](thruster-features.md) — thruster node API and features.
+- [ground-effect.md](ground-effect.md) — in-ground-effect lift model,
+  per-thruster ray sensing, tuning recipes, and the ground-effect bug
+  catalogue.
