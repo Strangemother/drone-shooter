@@ -1,0 +1,63 @@
+[gd_scene load_steps=7 format=3 uid="uid://dhkbp32hmy3kw"]
+
+[ext_resource type="Script" uid="uid://c3yiv13mript5" path="res://Drones/Scripts/DroneScript.gd" id="1_q7bwi"]
+[ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="2_85430"]
+[ext_resource type="PackedScene" uid="uid://drsnpwe6p0dts" path="res://Drones/Scenes/thruster_collision_shape.tscn" id="3_q7bwi"]
+[ext_resource type="Script" uid="uid://c1pwn6awbtwn0" path="res://Drones/Scripts/DroneThrusterScript.gd" id="4_5j6xk"]
+[ext_resource type="Script" uid="uid://bcp20udj0xh8e" path="res://Drones/Scripts/FlightControllers/QuadFlightController.gd" id="4_q7bwi"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
+size = Vector3(0.8, 0.639, 1.466)
+
+[node name="DroneScene" type="RigidBody3D"]
+mass = 0.5
+gravity_scale = 2.0
+can_sleep = false
+script = ExtResource("1_q7bwi")
+
+[node name="drone_costum" parent="." instance=ExtResource("2_85430")]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.317, 0)
+shape = SubResource("BoxShape3D_b08s0")
+
+[node name="Thruster0" parent="." instance=ExtResource("3_q7bwi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, -0.66)
+script = ExtResource("4_5j6xk")
+max_force = 4.0
+
+[node name="Thruster1" parent="." instance=ExtResource("3_q7bwi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, -0.66)
+script = ExtResource("4_5j6xk")
+max_force = 4.0
+
+[node name="Thruster2" parent="." instance=ExtResource("3_q7bwi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, 0.66)
+script = ExtResource("4_5j6xk")
+max_force = 4.0
+
+[node name="Thruster3" parent="." instance=ExtResource("3_q7bwi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, 0.66)
+script = ExtResource("4_5j6xk")
+max_force = 4.0
+
+[node name="FlightController" type="Node" parent="."]
+script = ExtResource("4_q7bwi")
+pitch_authority = 0.2
+roll_authority = 0.2
+prop_torque_coefficient = 0.1
+yaw_tilt_angle = 0.4
+yaw_idle_thrust = 0.25
+yaw_throttle_attenuation = 0.7
+throttle_up_action = &"throttle_analog"
+pitch_forward_action = &"pitch_forward"
+pitch_backward_action = &"pitch_backward"
+roll_left_action = &"roll_left"
+roll_right_action = &"roll_right"
+yaw_left_action = &"twist_left"
+yaw_right_action = &"twist_right"
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71, -0.03)
+current = true

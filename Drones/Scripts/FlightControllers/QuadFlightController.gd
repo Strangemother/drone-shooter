@@ -234,9 +234,9 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# (matches real-drone feel at low RPM).
 	var yaw_abs: float = absf(yaw)
 	if yaw_motor_idle > 0.0 and yaw_abs > 0.0:
-		var floor: float = yaw_motor_idle * yaw_abs * power_authority
-		if collective < floor:
-			collective = floor
+		var _floor: float = yaw_motor_idle * yaw_abs * power_authority
+		if collective < _floor:
+			collective = _floor
 
 	# ── Per-motor X-quad mix ────────────────────────────────────────
 	# motor_thr = clamp(

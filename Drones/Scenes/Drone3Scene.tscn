@@ -1,9 +1,9 @@
-[gd_scene load_steps=7 format=3 uid="uid://dhkbp32hmy3kw"]
+[gd_scene load_steps=7 format=3 uid="uid://bhqsup8okio72"]
 
-[ext_resource type="Script" uid="uid://c3yiv13mript5" path="res://Drones/Scripts/DroneScript.gd" id="1_q7bwi"]
-[ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="2_85430"]
-[ext_resource type="Script" uid="uid://c1pwn6awbtwn0" path="res://Drones/Scripts/DroneThrusterScript.gd" id="3_0vxhe"]
-[ext_resource type="Script" uid="uid://bcp20udj0xh8e" path="res://Drones/Scripts/FlightControllers/QuadFlightController.gd" id="4_q7bwi"]
+[ext_resource type="Script" uid="uid://c3yiv13mript5" path="res://Drones/Scripts/DroneScript.gd" id="1_dy7s0"]
+[ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="2_7yic1"]
+[ext_resource type="Script" uid="uid://c1pwn6awbtwn0" path="res://Drones/Scripts/DroneThrusterScript.gd" id="3_ixu5b"]
+[ext_resource type="Script" uid="uid://bcp20udj0xh8e" path="res://Drones/Scripts/FlightControllers/QuadFlightController.gd" id="4_qxkhp"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
 size = Vector3(0.8, 0.639, 1.466)
@@ -15,9 +15,9 @@ radius = 0.306051
 mass = 0.5
 gravity_scale = 2.0
 can_sleep = false
-script = ExtResource("1_q7bwi")
+script = ExtResource("1_dy7s0")
 
-[node name="drone_costum" parent="." instance=ExtResource("2_85430")]
+[node name="drone_costum" parent="." instance=ExtResource("2_7yic1")]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.317, 0)
@@ -26,29 +26,29 @@ shape = SubResource("BoxShape3D_b08s0")
 [node name="MotorCollisionShape1" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.2, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
-script = ExtResource("3_0vxhe")
+script = ExtResource("3_ixu5b")
 max_force = 4.0
 
 [node name="MotorCollisionShape2" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.2, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
-script = ExtResource("3_0vxhe")
+script = ExtResource("3_ixu5b")
 max_force = 4.0
 
 [node name="MotorCollisionShape3" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.2, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
-script = ExtResource("3_0vxhe")
+script = ExtResource("3_ixu5b")
 max_force = 4.0
 
 [node name="MotorCollisionShape4" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.2, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
-script = ExtResource("3_0vxhe")
+script = ExtResource("3_ixu5b")
 max_force = 4.0
 
 [node name="FlightController" type="Node" parent="."]
-script = ExtResource("4_q7bwi")
+script = ExtResource("4_qxkhp")
 prop_torque_coefficient = 0.4
 yaw_tilt_angle = 0.25
 yaw_idle_thrust = 0.25
@@ -62,5 +62,5 @@ yaw_left_action = &"twist_left"
 yaw_right_action = &"twist_right"
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(-1, 0, -8.9407e-08, 0, 1, 0, 8.9407e-08, 0, -1, 0, 0.86, -0.275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.74, 0.085)
 current = true
