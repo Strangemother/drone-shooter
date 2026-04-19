@@ -53,7 +53,48 @@ class_name FlightThruster
 ## 0 to disable spool-down (snaps instantly to lower values).
 @export_range(0.0, 5.0, 0.001) var spool_down_time: float = 0.12
 
+@export_group("Ground Effect")
+
+## Enable in-ground-effect (IGE) thrust augmentation.  When the
+## downward-facing raycast (see `ground_ray_path`) sees a surface
+## close enough, the thruster's output is boosted per the
+## Cheeseman–Bennett model:
+##
+##   T_IGE / T_OGE = 1 / (1 − (R / 4h)²)
+##
+## where R is the effective rotor radius and h is the motor's height
+## above the detected ground.  The effect is ~6 % at h = 2R, grows
+## rapidly as h approaches R, and is capped by `ground_effect_max`.
+##
+## Requires a `RayCast3D` child (or a node at `ground_ray_path`)
+## pointing along the thruster's local −Y with enough reach to see
+## the ground at rest height.
+@export var ground_effect_enabled: bool = true
+
+## Path to the downward-pointing RayCast3D used to measure height
+## above ground.  Defaults to a sibling or child called "RayCast3D".
+## The ray's `target_position` sets the maximum detection distance;
+## if the ray isn't colliding, ground effect is off (multiplier = 1).
+@export_node_path("RayCast3D") var ground_ray_path: NodePath = NodePath("RayCast3D")
+
+## Effective rotor radius R (metres).  Used as the scaling length in
+## the Cheeseman–Bennett formula.  A good default is the visible
+## prop radius — the cylinder mesh in `thruster_collision_shape.tscn`
+## is 0.3 m, so 0.3 matches what the player sees.
+##
+## Smaller R → effect only kicks in very close to the ground.
+## Larger R → effect felt further out, feels "floatier" on landing.
+@export_range(0.05, 2.0, 0.01) var ground_effect_radius: float = 0.3
+
+## Hard cap on the IGE thrust multiplier.  The raw formula diverges
+## as h → R, so we clamp to prevent unphysical infinite lift when
+## the drone is touching or below the rotor plane.  Real helicopters
+## see roughly 1.3–1.5× thrust at very low hover heights; 1.5 is a
+## safe, game-feel-friendly ceiling.
+@export_range(1.0, 3.0, 0.01) var ground_effect_max: float = 1.5
+
 var target_body: RigidBody3D
+var _ground_ray: RayCast3D
 
 # Throttle the controller *asked* for — the target the ramped
 # `throttle` chases every physics tick.  Written via set_thrust /
@@ -67,6 +108,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	target_body = _resolve_target_body()
+	_ground_ray = get_node_or_null(ground_ray_path) as RayCast3D
 
 
 func _physics_process(delta: float) -> void:
@@ -104,10 +146,42 @@ func _physics_process(delta: float) -> void:
 	if normalized_axis == Vector3.ZERO:
 		return
 
-	var force := global_transform.basis * normalized_axis * max_force * throttle
+	var ground_multiplier := _compute_ground_effect_multiplier()
+	var force := global_transform.basis * normalized_axis * max_force * throttle * ground_multiplier
 	var application_point := global_position - target_body.global_position
 	target_body.sleeping = false
 	target_body.apply_force(force, application_point)
+
+
+## Compute the Cheeseman–Bennett in-ground-effect multiplier.
+##
+## Returns 1.0 (no effect) when ground effect is disabled, the ray
+## is missing, or the ray isn't colliding.  Otherwise returns
+## 1 / (1 − (R / 4h)²), clamped to [1, ground_effect_max].
+##
+## `h` is measured from the thruster's global position to the ray
+## collision point (straight-line distance) — this is what a real
+## rotor "feels", independent of body tilt, since the air cushion
+## forms below the disc regardless of frame attitude.
+func _compute_ground_effect_multiplier() -> float:
+	if not ground_effect_enabled:
+		return 1.0
+	if _ground_ray == null or not _ground_ray.is_colliding():
+		return 1.0
+
+	var h: float = global_position.distance_to(_ground_ray.get_collision_point())
+	# Guard the singularity at h → 0 and stay well clear of it.
+	# Treat anything closer than a quarter-radius as the cap.
+	var h_min: float = ground_effect_radius * 0.25
+	if h < h_min:
+		return ground_effect_max
+
+	var ratio: float = ground_effect_radius / (4.0 * h)
+	var denom: float = 1.0 - ratio * ratio
+	if denom <= 0.0:
+		return ground_effect_max
+
+	return clampf(1.0 / denom, 1.0, ground_effect_max)
 
 
 ## Set throttle in [0, 1].  Direction stays whatever `force_axis` was.
