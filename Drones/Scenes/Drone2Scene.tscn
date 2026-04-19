@@ -50,6 +50,10 @@ max_force = 3.0
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
 throttle_up_action = &"throttle_analog"
+pitch_forward_action = &"pitch_forward"
+pitch_backward_action = &"pitch_backward"
+roll_left_action = &"roll_left"
+roll_right_action = &"roll_right"
 yaw_left_action = &"twist_left"
 yaw_right_action = &"twist_right"
 
