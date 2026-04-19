@@ -4,9 +4,21 @@ class_name FlightThruster
 
 @export_node_path("RigidBody3D") var target_body_path: NodePath = NodePath("..")
 @export_range(0.0, 500.0, 0.1) var max_force: float = 45.0
+
+## Current *actual* throttle (∈ [0, 1]) — the value the thruster is
+## applying to the physics body this tick.  Drifts toward
+## `_commanded_throttle` via the PowerRamp low-pass filter (see
+## `spool_up_time` / `spool_down_time` below).
+##
+## Normally read-only from outside; controllers should call
+## `set_thrust` / `set_thrust_directed` / `set_throttle` to update
+## the command.  Direct assignment to `throttle = x` *bypasses the
+## ramp* and snaps both command and actual throttle to `x` — useful
+## for tests or hard resets, but not for normal flight control.
 @export_range(0.0, 1.0, 0.001) var throttle: float = 0.0:
 	set(value):
 		throttle = clampf(value, 0.0, 1.0)
+		_commanded_throttle = throttle
 
 ## Thrust direction in the thruster's *local* frame.  The thruster's
 ## own `global_transform.basis` rotates this into world space each
@@ -19,7 +31,34 @@ class_name FlightThruster
 @export var force_axis: Vector3 = Vector3.UP
 @export var enabled: bool = true
 
+## PowerRamp — spool-up time constant (seconds).  How long the motor
+## takes to accelerate toward a higher commanded throttle.  Real
+## brushless drone motors with props typically sit in the 0.05–0.15 s
+## range; aircraft engines and turbines are 1–5 s.
+##
+## Implemented as a first-order low-pass filter:
+##   α = 1 − exp(−Δt / τ)
+##   throttle ← throttle + (commanded − throttle) · α
+## so 63 % of the gap is closed after one τ, 95 % after 3 τ.
+##
+## Set to 0 to disable spool-up (instantaneous response).
+@export_range(0.0, 5.0, 0.001) var spool_up_time: float = 0.08
+
+## PowerRamp — spool-down time constant (seconds).  How long the
+## motor takes to decelerate toward a lower commanded throttle.
+## Usually *slower* than spool-up on a free-wheeling prop (motor
+## stops being driven, prop inertia carries on for longer).
+##
+## Set equal to `spool_up_time` for a symmetric response, or set to
+## 0 to disable spool-down (snaps instantly to lower values).
+@export_range(0.0, 5.0, 0.001) var spool_down_time: float = 0.12
+
 var target_body: RigidBody3D
+
+# Throttle the controller *asked* for — the target the ramped
+# `throttle` chases every physics tick.  Written via set_thrust /
+# set_thrust_directed / set_throttle; read only internally.
+var _commanded_throttle: float = 0.0
 
 
 func _enter_tree() -> void:
@@ -30,11 +69,30 @@ func _ready() -> void:
 	target_body = _resolve_target_body()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not enabled:
 		return
 
-	if throttle <= 0.0:
+	# Step the PowerRamp toward the current command.  Pick the
+	# spool-up or spool-down time constant depending on which
+	# direction we're moving — real motors are asymmetric.
+	var tau: float
+	if _commanded_throttle > throttle:
+		tau = spool_up_time
+	else:
+		tau = spool_down_time
+
+	if tau > 0.0:
+		# First-order low-pass: α = 1 − exp(−Δt/τ).  Stable for any
+		# Δt (never overshoots), reduces to linear for small Δt/τ.
+		var alpha: float = 1.0 - exp(-delta / tau)
+		throttle = throttle + (_commanded_throttle - throttle) * alpha
+	else:
+		# Zero time constant → snap instantly.
+		throttle = _commanded_throttle
+
+	# Nothing to push if the ramp has fully decayed to zero.
+	if throttle <= 0.0001:
 		return
 
 	if target_body == null:
@@ -55,13 +113,16 @@ func _physics_process(_delta: float) -> void:
 ## Set throttle in [0, 1].  Direction stays whatever `force_axis` was.
 ## Use this when you only want to vary power and the thruster's
 ## orientation is fixed (the common case).
+##
+## Updates the *command* — actual applied throttle will ramp toward
+## this value over `spool_up_time` / `spool_down_time` seconds.
 func set_throttle(value: float) -> void:
-	throttle = value
+	_commanded_throttle = clampf(value, 0.0, 1.0)
 
 
 ## Set thrust as a single vector.  The vector's *length* is the
-## throttle (clamped to [0, 1]) and its *direction* is the local-
-## frame axis the thrust is applied along.
+## commanded throttle (clamped to [0, 1]) and its *direction* is the
+## local-frame axis the thrust is applied along.
 ##
 ## This is the recommended API for runtime controllers — the
 ## developer thinks in "I want this much push in this direction"
@@ -69,9 +130,12 @@ func set_throttle(value: float) -> void:
 ## force at the correct application point.  Body translation and
 ## torque from off-centre application happen automatically.
 ##
+## Like `set_throttle`, this updates the *command*; the actual
+## applied throttle will lag behind per the PowerRamp constants.
+##
 ## Examples:
 ##   • `set_thrust(Vector3.UP * 0.5)` — half-throttle straight up.
-##   • `set_thrust(Vector3.ZERO)` — engine off.
+##   • `set_thrust(Vector3.ZERO)` — engine off (will spool down).
 ##   • `set_thrust(Vector3(0, 0.7, -0.3).normalized() * 0.8)` —
 ##     80% throttle, vectored mostly up with a forward component.
 ##
@@ -81,25 +145,38 @@ func set_throttle(value: float) -> void:
 func set_thrust(thrust: Vector3) -> void:
 	var power := thrust.length()
 	if power <= 0.0001:
-		throttle = 0.0
+		_commanded_throttle = 0.0
 		return
 	force_axis = thrust / power
-	throttle = clampf(power, 0.0, 1.0)
+	_commanded_throttle = clampf(power, 0.0, 1.0)
 
 
 ## Convenience: set direction and power independently in one call.
 ## Equivalent to `set_thrust(direction.normalized() * power)` but
 ## skips a normalize when the caller already has a unit vector.
+##
+## Updates the *command* — see `set_thrust` notes about PowerRamp.
 func set_thrust_directed(direction: Vector3, power: float) -> void:
 	if direction == Vector3.ZERO or power <= 0.0:
-		throttle = 0.0
+		_commanded_throttle = 0.0
 		return
 	force_axis = direction.normalized()
-	throttle = clampf(power, 0.0, 1.0)
+	_commanded_throttle = clampf(power, 0.0, 1.0)
 
 
 func get_max_force() -> float:
 	return max_force
+
+
+## Returns the throttle value most recently *commanded* via set_thrust
+## / set_thrust_directed / set_throttle.  The actual applied throttle
+## (`throttle` property) lags this by the PowerRamp time constant.
+##
+## Useful for controllers that need to distinguish "what the pilot
+## asked for" from "what the prop is actually doing right now" —
+## e.g. a PID rate loop measuring tracking error.
+func get_commanded_throttle() -> float:
+	return _commanded_throttle
 
 
 func _resolve_target_body() -> RigidBody3D:

@@ -94,6 +94,47 @@ class_name FlightQuadController
 ## drag — physically correct, but means yaw authority disappears).
 @export_range(0.0, 1.0, 0.001) var yaw_motor_idle: float = 0.10
 
+## ── Per-axis aerodynamic angular drag ──────────────────────────────
+##
+## Godot's built-in `angular_damp` on RigidBody3D is *isotropic* — it
+## applies the same resistance to pitch, roll, and yaw.  Real drones
+## are not isotropic: a quad's four props present a large flat disc
+## to yaw rotation but only edge-on to pitch and roll, so yaw
+## aerodynamic damping is typically 3–5× the pitch/roll damping.
+##
+## These exports apply an explicit drag torque in the body's local
+## frame each physics tick:
+##
+##     τ_drag_local = −Vector3(k_pitch · ω_x,  k_yaw · ω_y,  k_roll · ω_z)
+##
+## where ω is the body's angular velocity expressed in its own local
+## frame.  The torque is then rotated back to world space and handed
+## to `apply_torque`.  Units are N·m per rad/s (linear drag), so
+## doubling ω doubles the opposing torque (matches low-speed
+## aerodynamic drag on an immersed disc/plate).
+##
+## Recommended workflow: **set the RigidBody3D's `angular_damp` to 0**
+## and tune these three values instead.  If `angular_damp` is left
+## non-zero it will stack on top of these — both are additive — which
+## is fine for quick tuning but makes the yaw-rate calculations in
+## units-reference.md §5.3 inexact.
+##
+## A good starting point for the 0.5 kg / 10-inch-prop baseline:
+##   angular_drag_pitch = 0.05, angular_drag_roll = 0.05,
+##   angular_drag_yaw   = 0.25  (yaw ≈ 5× pitch/roll).
+##
+## Left at 0 by default so existing scenes are not silently changed.
+@export_range(0.0, 10.0, 0.001) var angular_drag_pitch: float = 0.0
+
+## See `angular_drag_pitch`.  Roll drag around the drone's local Z
+## axis (forward/back axis).  Usually similar to pitch drag.
+@export_range(0.0, 10.0, 0.001) var angular_drag_roll: float = 0.0
+
+## See `angular_drag_pitch`.  Yaw drag around the drone's local Y
+## (up) axis.  Typically 3–5× the pitch/roll values because the prop
+## discs act like flat plates resisting yaw rotation.
+@export_range(0.0, 10.0, 0.001) var angular_drag_yaw: float = 0.0
+
 ## Per-thruster spin-sign overrides.
 ##   Key:   the Node3D thruster reference (assign at runtime or from
 ##          a ready function with `spin_sign_override[get_node(...)] = 1`).
@@ -176,10 +217,23 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		# Tᵢ = max_force · throttle.  `get_max_force` is the
 		# FlightThruster API; fall back to 1.0 for exotic thrusters
 		# so the torque still scales with the relative differential.
+		#
+		# Read the thruster's *actual* throttle property rather than
+		# the `motor_thr` we just commanded — on a thruster that
+		# implements PowerRamp, `t.throttle` holds the ramped value
+		# that is being applied as force this tick, so the yaw
+		# reaction torque lags motor RPM in exactly the same way.
+		# The commanded value is saved to `_commanded_throttle`
+		# inside the thruster and the next physics tick will ramp
+		# toward it.  Falls back to `motor_thr` for exotic thrusters
+		# that don't expose a `throttle` property.
 		var motor_max: float = 1.0
 		if t.has_method("get_max_force"):
 			motor_max = t.get_max_force()
-		signed_thrust_sum += float(spin) * motor_max * motor_thr
+		var actual_thr: float = motor_thr
+		if "throttle" in t:
+			actual_thr = t.throttle
+		signed_thrust_sum += float(spin) * motor_max * actual_thr
 
 		if motor_thr > 0.0:
 			any_active = true
@@ -199,6 +253,26 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# FlightThruster calls `apply_force`.
 	if body != null and prop_torque_coefficient > 0.0 and absf(signed_thrust_sum) > 0.0001:
 		body.apply_torque(body.basis.y * prop_torque_coefficient * signed_thrust_sum)
+
+	# ── Per-axis aerodynamic angular drag ───────────────────────────
+	# Apply τ_drag = −k · ω component-wise in the body's local frame,
+	# then rotate the resulting torque back into world space before
+	# handing it to `apply_torque`.  This lets yaw be more damped
+	# than pitch/roll (see export doc on `angular_drag_pitch`).
+	#
+	# Skipped when all three coefficients are zero — cheap early-out
+	# so users who haven't opted in don't pay for the transform math.
+	if body != null and (angular_drag_pitch > 0.0 or angular_drag_roll > 0.0 or angular_drag_yaw > 0.0):
+		# RigidBody3D bases are orthonormal, so transposed() == inverse().
+		var w_local: Vector3 = body.basis.transposed() * body.angular_velocity
+		var drag_local := Vector3(
+			-w_local.x * angular_drag_pitch,  # local-X = pitch axis
+			-w_local.y * angular_drag_yaw,    # local-Y = yaw   axis
+			-w_local.z * angular_drag_roll,   # local-Z = roll  axis
+		)
+		# Rotate back to world frame for apply_torque, which takes
+		# a world-space torque vector.
+		body.apply_torque(body.basis * drag_local)
 
 	# Silence all engines when player releases every input.
 	if not any_active and yaw_abs < 0.001:
