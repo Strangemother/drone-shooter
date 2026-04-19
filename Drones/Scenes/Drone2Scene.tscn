@@ -50,6 +50,8 @@ max_force = 3.0
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
 throttle_up_action = &"throttle_analog"
+yaw_left_action = &"twist_left"
+yaw_right_action = &"twist_right"
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(-1, 0, -8.9407e-08, 0, 1, 0, 8.9407e-08, 0, -1, 0, 0.86, -0.275)
