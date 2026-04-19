@@ -87,12 +87,22 @@ $$F_\text{max} = \frac{\text{TWR} \times m \times g}{N_\text{thrusters}}$$
 
 ### 3.3 Real motor thrust reference
 
+Thrust values are *per motor* at full throttle on a typical battery.  Values
+converted from manufacturer thrust data (gram-force → Newtons via
+$1~\mathrm{gf} \approx 0.00981~\mathrm{N}$).
+
 | Motor class | Approximate thrust at full power |
 |---|---|
-| 1103 / 1S Tinywhoop | 0.05 – 0.15 N |
-| 1404 / 3-inch | 0.30 – 0.50 N |
-| 2306 / 5-inch freestyle | 8 – 14 N (≈ 850 – 1450 gf) |
-| DJI Mavic 3 prop | ~20 N total (≈ 5 N per motor) |
+| 0603 / brushed 1S Tinywhoop | 0.15 – 0.35 N (≈ 15 – 35 gf) |
+| 1103 / 1S brushless | 0.35 – 0.55 N (≈ 35 – 55 gf) |
+| 1404 / 3-inch 4S | 3 – 5 N (≈ 300 – 500 gf) |
+| 2306 / 5-inch freestyle 6S | 15 – 25 N (≈ 1500 – 2500 gf) |
+| DJI Mavic 3 (per motor) | ~6 – 8 N |
+
+Note: a 5-inch freestyle quad's 2306 motor typically produces 1.5 – 2.5 kgf
+per motor on 6S, giving a four-motor total of ~60 – 100 N against a ~700 g
+body (TWR ≈ 8 – 14).  Match this pattern when configuring the simulator for
+racing-feel drones.
 
 ---
 
@@ -101,7 +111,7 @@ $$F_\text{max} = \frac{\text{TWR} \times m \times g}{N_\text{thrusters}}$$
 | Property | Value | Path in editor |
 |---|---|---|
 | Default gravity magnitude | 9.8 m/s² | Project Settings → Physics → 3D → `Default Gravity` |
-| Default gravity direction | `Vector3(0, −1, 0)` | same |
+| Default gravity direction | `Vector3(0, -1, 0)` | same |
 
 Changing the default gravity affects *all* `RigidBody3D` nodes globally.  For
 zero-gravity (space) environments, set `gravity_scale = 0.0` on the individual
@@ -125,21 +135,47 @@ $$\tau = I \cdot \alpha$$
 where $I$ is moment of inertia (kg·m²) and $\alpha$ is angular acceleration
 (rad/s²).
 
-Godot's `RigidBody3D` calculates $I$ automatically from `mass` when no
-`PhysicsMaterial` shape is assigned; the default approximates a uniform sphere
-of the given mass.  The effective $I$ for small drones is approximately:
+Godot's `RigidBody3D` computes its inertia tensor from the attached
+`CollisionShape3D` and the body's `mass`.  The formula used depends on the
+shape type:
 
-$$I \approx \frac{2}{5} m r^2$$
+| Shape | Inertia about principal axis |
+|---|---|
+| `SphereShape3D` (radius $r$) | $I = \frac{2}{5} m r^2$ |
+| `BoxShape3D` (size $a \times b \times c$) | $I_y = \frac{1}{12} m (a^2 + c^2)$ |
+| `CapsuleShape3D` (radius $r$, height $h$) | complex; see Godot source |
+| `CylinderShape3D` (radius $r$, height $h$) | $I_y = \frac{1}{2} m r^2$ (about Y) |
 
-where $r$ is the body's collision-shape radius.  For a 0.5 kg drone with a
-~0.15 m effective radius: $I \approx 0.0045~\text{kg·m}^2$.
+If you need an explicit inertia tensor independent of the collision shape,
+set `RigidBody3D.inertia` to a non-zero `Vector3` (components give inertia
+about each body axis).  Setting `inertia = Vector3.ZERO` (default) falls back
+to the shape-derived value.
+
+Example — a 0.5 kg drone using a `BoxShape3D` of size 0.30 × 0.10 × 0.30 m:
+
+$$I_y = \frac{1}{12} \times 0.5 \times (0.30^2 + 0.30^2) = 0.0075~\mathrm{kg \cdot m^2}$$
+
+If the collision shape is significantly larger or smaller than the visible
+drone body, the resulting $I$ will over- or under-estimate yaw inertia — one
+of the most common sources of "drone feels too heavy / too twitchy" once
+basic forces are correct.
 
 ### 5.2 Angular velocity
 
 | Property | Unit | Where |
 |---|---|---|
-| `angular_velocity` | rad/s | RigidBody3D Inspector (read in code) |
+| `angular_velocity` | rad/s | RigidBody3D (`body.angular_velocity`) |
 | `angular_damp` | s⁻¹ (damping coefficient) | RigidBody3D Inspector |
+
+`angular_damp` in Godot 4 is a linear drag coefficient applied every physics
+step such that:
+
+$$\boldsymbol{\omega}_{t+1} = \boldsymbol{\omega}_t \times \max(0,\; 1 - d \, \Delta t)$$
+
+For small $d \, \Delta t$ this approximates exponential decay
+$\omega(t) = \omega_0 e^{-d t}$.  At the default physics step of
+$\Delta t = 1/60$ s, the per-step decay factor is $1 - d/60$, meaning
+`angular_damp = 60` would fully stop rotation in a single tick.
 
 To convert observed angular velocity to human-readable:
 
@@ -167,7 +203,7 @@ $$\text{yaw\_reaction\_torque} = \text{angular\_damp} \times I \times \omega_\te
 Example — 0.5 kg drone, $I \approx 0.0045$, `angular_damp = 4.0`, target
 400 °/s (6.98 rad/s):
 
-$$\tau = 4.0 \times 0.0045 \times 6.98 \approx 0.13~\text{N·m}$$
+$$\tau = 4.0 \times 0.0045 \times 6.98 \approx 0.13~\mathrm{N \cdot m}$$
 
 Start there and tune upward if yaw feels weak.
 
@@ -180,13 +216,17 @@ $$\omega_{t+1} = \omega_t \times e^{-d \cdot \Delta t}$$
 
 Higher values = faster spin-down after releasing the stick.
 
-| `angular_damp` | Feel |
-|---|---|
-| 0 | No resistance — drone spins forever |
-| 1 – 2 | Light / over-powered feel |
-| 3 – 5 | Consumer drone feel (recommended start) |
-| 6 – 10 | Heavy / sluggish yaw |
-| > 10 | Drone stops yawing almost instantly |
+| `angular_damp` | Per-second decay | Feel |
+|---|---|---|
+| 0 | 0% | No resistance — drone spins forever once torqued |
+| 1 | ~63% in 1 s | Light — agile, minimal aerodynamic damping |
+| 3 | ~95% in 1 s | Moderate — consumer drone feel (recommended start) |
+| 5 – 8 | ~99% in 1 s | Heavy — cinematic / DJI-stabilised feel |
+| > 10 | > 99% in < 0.5 s | Strongly over-damped — yaw stops nearly instantly |
+
+These are starting points, not calibrated to real aerodynamics.  The correct
+value depends on the body's moment of inertia, yaw-torque magnitude, and
+target maximum yaw rate — see §5.3 for the physics-based calculation.
 
 ---
 

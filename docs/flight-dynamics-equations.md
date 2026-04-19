@@ -34,8 +34,81 @@
 | $r$ | Lever arm length from body centre | m |
 | $R$ | Propeller radius | m |
 | $n$ | Rotational speed | rev/s |
-| $k_Q$ | Proportionality coefficient (torque per unit force) | m |
+| $\kappa$ | Rotor torque coefficient (dimensionless) | — |
+| $\alpha$ | Angle of attack (fixed wing) / angular acceleration (dynamics) | rad or rad/s² |
 | $\Delta t$ | Physics time step | s |
+
+---
+
+## 0. Raw physics ↔ Godot approximation
+
+> A recurring confusion when working across "real physics" references and a
+> game engine's physics API is that the two speak different dialects.  Every
+> section below gives the equations in two forms where they differ:
+>
+> - **Raw physics** — the textbook form, valid for analysis, sizing, and
+>   sanity-checking.  These are what you'd find in an aerospace or
+>   classical-mechanics textbook.  Used when reasoning about what the
+>   simulator *should* produce.
+> - **Godot approximation / idiom** — what the engine actually computes each
+>   physics tick given the available API (`apply_force`, `apply_torque`,
+>   `linear_damp`, `angular_damp`, `RigidBody3D.inertia`, etc.).  These are
+>   what you'd type in GDScript.
+>
+> Where the two match exactly (Newton's laws, gravity, lever-arm torque), only
+> one form is given.  Where they diverge (drag, ground effect, prop wash) the
+> raw form is labelled first, then the approximation used in-engine.
+
+### 0.1 Side-by-side reference
+
+Common quantities, in both languages.
+
+| Quantity | Raw physics | Godot idiom |
+|---|---|---|
+| Force on body | $\mathbf{F}_\text{net} = m\,\mathbf{a}$ | `body.apply_force(F, offset)` |
+| Torque on body | $\boldsymbol{\tau} = I\,\boldsymbol{\alpha}$ | `body.apply_torque(T)` |
+| Gravity | $\mathbf{F}_g = m\mathbf{g}$ | Applied automatically; scale with `gravity_scale` |
+| Off-centre thrust → torque | $\boldsymbol{\tau} = \mathbf{r} \times \mathbf{F}$ | `body.apply_force(F, r)` — Godot computes the cross product internally |
+| Quadratic drag | $\mathbf{F}_d = -\tfrac{1}{2}\rho C_D A v^2 \hat{\mathbf{v}}$ | approximated by `linear_damp` (linear in $v$, not $v^2$) |
+| Rotational drag | $\boldsymbol{\tau}_d = -c_\omega\,\omega^2\,\hat{\boldsymbol{\omega}}$ (or linear: $-d\,I\,\boldsymbol{\omega}$) | `angular_damp` (per-tick linear) |
+| Moment of inertia | $\int r^2\,dm$ over body | Derived from `CollisionShape3D`; overridable via `RigidBody3D.inertia` |
+| Attitude | Rotation matrix $\mathbf{R}$ or quaternion $\mathbf{q}$ | `body.basis` (3 column vectors) or `body.quaternion` |
+| Angular velocity | $\boldsymbol{\omega}$ (rad/s) | `body.angular_velocity` (Vector3, rad/s) |
+| Integration method | Semi-implicit Euler | Godot's built-in integrator (also semi-implicit Euler) |
+
+### 0.2 Where the approximations hurt
+
+Being explicit about where Godot's cheap approximations diverge from real
+aerodynamics helps when the simulator *feels* wrong despite correct-looking
+numbers:
+
+1. **Drag is linear, not quadratic.**  Real drag grows as $v^2$ — doubling
+   airspeed quadruples drag.  `linear_damp` grows only as $v$, so terminal
+   velocity in-engine is proportional to thrust rather than to $\sqrt{\text{thrust}}$.
+   Practical effect: an engine-tuning change by 2× doubles terminal speed
+   in-sim, where it would raise it by only ~1.4× in reality.
+2. **Angular damp is uniform across axes.**  Real drone yaw has much higher
+   aerodynamic damping than pitch/roll (the frame is broad and flat in plan,
+   thin in side view).  Godot uses a single `angular_damp` scalar across all
+   three axes unless you apply per-axis damping in code.
+3. **No inertia tensor off-diagonals.**  The engine treats the body as
+   having its principal axes aligned with the body frame — valid for
+   symmetric drones, wrong for asymmetric payloads (hanging camera, offset
+   battery).  For those cases, simulate with a symmetric body and apply the
+   mass offset via `center_of_mass`.
+4. **No propeller gyroscopic effect.**  Real spinning rotors resist attitude
+   changes like gyroscopes.  `FlightThruster` models thrust only, not rotor
+   angular momentum — a racing quad's "tilt feels like pushing through
+   syrup" character is absent.  Can be added later by attaching a small
+   `angular_velocity` on each rotor `Node3D` and applying the resulting
+   precession torque manually.
+5. **No air velocity field.**  Wind, downwash between rotors, and ground
+   effect all assume still air at every thruster's position.  Any of these
+   effects must be added as explicit forces (see §8).
+
+Treat these as known *feature gaps*, not bugs in the existing controllers.
+The quadcopter *feel* is already correct for its approximation class; adding
+the items above is the path toward higher-fidelity flight.
 
 ---
 
@@ -151,38 +224,62 @@ $$a_y = \frac{T_\text{total}}{m} - g = \left(\frac{N \, F_\text{max} \, \theta}{
 
 ### 4.1 Velocity-squared drag
 
-Real aerodynamic drag scales with the square of airspeed:
+**Raw physics.**  Aerodynamic drag on a body moving through a fluid scales
+with the square of airspeed:
 
 $$\mathbf{F}_\text{drag} = -\frac{1}{2} \rho \, C_D \, A \, v^2 \, \hat{\mathbf{v}}$$
 
 where $\hat{\mathbf{v}}$ is the unit velocity direction (opposing drag).
+This is the correct form for any surface moving through air faster than a
+few cm/s.  The coefficient $C_D$ depends on shape and Reynolds number; typical
+values range from $\sim 0.04$ (streamlined body) through $\sim 1.0$ (flat
+plate broadside to flow) to $\sim 1.3$ (cube).
 
-**In the simulator:** this can be approximated by Godot's built-in
-`linear_damp`, which applies a linear drag $\mathbf{F}_\text{drag} = -d \, m
-\, \mathbf{v}$.  Linear drag is a simplification but is numerically stable
-and produces a natural terminal-velocity feel without requiring explicit force
-computation.
+**Godot approximation.**  `linear_damp` applies a *linear* drag proportional
+to velocity:
 
-The linear-equivalent damping coefficient for a target terminal velocity
-$v_\text{term}$ at full thrust $T$:
+$$\mathbf{F}_\text{drag,Godot} = -d \, m \, \mathbf{v}$$
 
-$$d = \frac{T}{m \, v_\text{term}}$$
+This is a simplification but is numerically stable and produces a natural
+terminal-velocity feel without per-tick force computation.  The two forms
+give identical terminal velocity when sized correctly, and diverge only in
+the *transient* approach to that terminal velocity (linear damp decelerates
+slower at high $v$, faster at low $v$, compared to quadratic drag).
+
+To size `linear_damp` for a target terminal velocity $v_\text{term}$ at full
+thrust $T$, set net force to zero at $v = v_\text{term}$:
+
+$$T = d \, m \, v_\text{term} \implies d = \frac{T}{m \, v_\text{term}}$$
 
 Example: 0.5 kg drone, 9.8 N total thrust, target terminal horizontal speed
 20 m/s:
 
 $$d = \frac{9.8}{0.5 \times 20} = 0.98 \approx 1.0$$
 
+For a scene requiring quadratic-drag behaviour (e.g. a fixed-wing aircraft
+where drag rise with airspeed matters), set `linear_damp = 0` and apply the
+raw-physics form as an explicit `apply_force` each `_physics_process`.
+
 ### 4.2 Angular drag
 
-Rotational drag from aerodynamic resistance of the spinning body is modelled
-by Godot's `angular_damp`:
+**Raw physics.**  Rotational aerodynamic drag on a bluff body scales with
+$\omega^2$ (same reasoning as linear drag, applied tangentially to the
+rotating surface):
 
-$$\boldsymbol{\tau}_{\text{angular drag}} = -d_\omega \, I \, \boldsymbol{\omega}$$
+$$\boldsymbol{\tau}_\text{drag,raw} = -\tfrac{1}{2} \rho \, C_{D,\omega} \, A_\text{ref} \, r^3 \, \omega^2 \, \hat{\boldsymbol{\omega}}$$
 
-This causes exponential decay:
+**Godot approximation.**  `angular_damp` applies a linear decay to angular
+velocity each physics step:
 
-$$\boldsymbol{\omega}(t) = \boldsymbol{\omega}_0 \, e^{-d_\omega \, t}$$
+$$\boldsymbol{\omega}_{t+1} = \boldsymbol{\omega}_t \times \max(0,\; 1 - d_\omega \, \Delta t)$$
+
+which for small $d_\omega \Delta t$ approximates exponential decay
+$\boldsymbol{\omega}(t) = \boldsymbol{\omega}_0 \, e^{-d_\omega t}$, equivalent
+to a torque of:
+
+$$\boldsymbol{\tau}_\text{drag,Godot} = -d_\omega \, I \, \boldsymbol{\omega}$$
+
+Applied uniformly to all three body axes — a limitation discussed in §0.2.
 
 ---
 
@@ -190,30 +287,38 @@ $$\boldsymbol{\omega}(t) = \boldsymbol{\omega}_0 \, e^{-d_\omega \, t}$$
 
 ### 5.1 Aerodynamic drag torque from a spinning prop
 
-A propeller spinning at angular velocity $\Omega$ (rad/s) produces both thrust
-$T$ and a reaction torque $Q$ on the motor shaft:
+A propeller spinning at angular velocity $\Omega$ (rad/s) produces thrust $T$
+and a reaction torque $Q$ on the motor shaft.  For a rotor of radius $R$
+operating in hover, momentum theory gives:
 
-$$Q = k_Q \, T$$
+$$Q = \kappa \, T \, R$$
 
-where $k_Q$ is the motor's torque-to-thrust ratio (approximately 0.01–0.05 m
-for typical drone props).  The body receives $-Q$ about the prop's spin axis.
+where $\kappa$ is a dimensionless efficiency factor (≈ 0.05 – 0.15 for
+typical small drone props; varies with prop pitch, Reynolds number, and
+induced-flow state).  Hence $Q$ has units $[\mathrm{N} \cdot \mathrm{m}]$.
+
+The body receives the *reaction* torque $-Q$ about the prop's spin axis —
+this is the mechanism that yaws a quadcopter.
 
 ### 5.2 Net yaw torque from a quadcopter
 
-For a layout with $N_\text{CW}$ clockwise and $N_\text{CCW}$ counter-clockwise
-motors:
+For a layout with CW and CCW motors (spin signs $s_i \in \{+1, -1\}$),
+the total reaction torque on the body about the yaw axis is:
 
-$$\tau_\text{yaw} = k_Q \left( \sum_{i \in \text{CCW}} T_i - \sum_{j \in \text{CW}} T_j \right)$$
+$$\tau_\text{yaw} = -\sum_i s_i \, Q_i = -\kappa R \sum_i s_i \, T_i$$
 
-At equal throttle this sum is zero.  During a yaw manoeuvre, the differential
-$\Delta T = T_\text{CCW} - T_\text{CW}$ produces:
+At equal thrust across a symmetric layout ($\sum s_i = 0$), $\tau_\text{yaw}
+= 0$.  During a yaw manoeuvre, speeding one diagonal pair by $+\Delta T$ and
+slowing the other by $-\Delta T$ gives:
 
-$$\tau_\text{yaw} = k_Q \, \Delta T \, N_\text{pairs}$$
+$$\tau_\text{yaw} = 2 \kappa R \, \Delta T \quad \text{(quadcopter, single pair)}$$
 
-**In the simulator:** `apply_torque(body.basis.y * -yaw * yaw_reaction_torque)`
-encodes $k_Q \, \Delta T \, N_\text{pairs}$ as the single tunable scalar
-`yaw_reaction_torque`.  It is applied in the body's local $Y$ direction, so it
-correctly rotates the drone about its own up axis regardless of attitude.
+**In the simulator:** `FlightQuadController` collapses the constants
+$\kappa R$ and the per-pair factor into a single inspector-tunable scalar
+`yaw_reaction_torque`, applied via
+`apply_torque(body.basis.y * -yaw * yaw_reaction_torque)`.  This torque acts
+about the body's local Y axis, so it correctly rotates the drone about its
+own up axis regardless of attitude.
 
 ### 5.3 Steady-state yaw rate
 
@@ -230,38 +335,60 @@ to solve for `yaw_reaction_torque` from a target yaw rate.
 
 ## 6. Moment of inertia
 
-### 6.1 Uniform sphere (Godot default)
+Godot 4's `RigidBody3D` derives its inertia tensor from the attached
+`CollisionShape3D` and the body's `mass`.  The following are the standard
+closed-form inertias about a principal axis through the centre of mass for
+common shapes.
 
-When no collision shape is assigned, Godot derives $I$ as a uniform solid
-sphere:
+### 6.1 Solid sphere
 
 $$I_\text{sphere} = \frac{2}{5} m r^2$$
 
-For a 0.5 kg drone with effective radius 0.15 m:
+Appropriate for roughly spherical bodies (a compact drone hull modelled as a
+`SphereShape3D`).
 
-$$I \approx \frac{2}{5} \times 0.5 \times 0.15^2 = 0.0045~\mathrm{kg \cdot m^2}$$
+### 6.2 Solid box (rectangular cuboid)
 
-### 6.2 Thin rod / arm (more realistic for a quad frame)
+For a box of edge lengths $a, b, c$ aligned with the body axes:
 
-The moment of inertia of a quad frame about the yaw axis ($+Y$) is dominated
-by the arm mass at distance $r$ from centre:
+$$I_x = \frac{1}{12} m (b^2 + c^2), \quad I_y = \frac{1}{12} m (a^2 + c^2), \quad I_z = \frac{1}{12} m (a^2 + b^2)$$
 
-$$I_\text{arm} = \sum_i m_i r_i^2$$
+For a typical 0.5 kg quadcopter with a $0.30 \times 0.10 \times 0.30$ m
+`BoxShape3D`:
 
-For four equal arms of mass $m_\text{arm}$ at radius $r$:
+$$I_y = \frac{1}{12} \times 0.5 \times (0.30^2 + 0.30^2) = 0.0075~\mathrm{kg \cdot m^2}$$
 
-$$I_\text{frame} = 4 \, m_\text{arm} \, r^2$$
+### 6.3 Thin rod / arm (realistic quad frame estimate)
 
-### 6.3 Parallel axis theorem
+The yaw-axis inertia of an idealised quad frame is dominated by the masses
+at the ends of the arms:
 
-To shift an inertia from the centroid to an offset point at distance $d$:
+$$I_\text{arm model} = \sum_i m_i r_i^2$$
+
+For four equal motors of mass $m_\text{motor}$ at arm radius $r$:
+
+$$I_y \approx 4 \, m_\text{motor} \, r^2$$
+
+This tends to *underestimate* real yaw inertia (it ignores the central hub
+and battery) by 20 – 40 %.
+
+### 6.4 Parallel-axis theorem
+
+To shift an inertia from an object's own centroid to a parallel axis at
+distance $d$:
 
 $$I_\text{offset} = I_\text{cm} + m \, d^2$$
 
-Useful when motors have non-negligible mass and are offset from the body
-centre.
+Used when composing total inertia from separately-inertia'd subcomponents
+(motors, battery, FC stack) each offset from the body centre.
 
----
+### 6.5 Overriding inertia in Godot
+
+If the shape-derived inertia is wrong for your model (e.g. you want to match
+a measured real drone rather than the collision hull), set
+`RigidBody3D.inertia` to a non-zero `Vector3`.  Components give the principal
+inertias about each body axis.  `Vector3.ZERO` (default) falls back to the
+shape-derived value.
 
 ## 7. Centre of mass and centroid
 
@@ -278,14 +405,24 @@ throttle.
 
 ### 7.2 Practical check in Godot
 
-Godot always treats the `RigidBody3D` origin as the centre of mass (it does
-not support offset CoM natively in 4.x without code).  To verify symmetry:
+Godot 4 supports offset centre of mass via two `RigidBody3D` properties:
 
-- Sum the motor positions: $\sum \mathbf{p}_i$ should equal $\mathbf{0}$
-- Ensure motor forces are equal at hover throttle
+- `center_of_mass_mode` — `AUTO` (derived from shapes) or `CUSTOM`.
+- `center_of_mass` — a `Vector3` offset, used when mode is `CUSTOM`.
 
-A non-zero sum indicates a CoM offset and will cause a pitch/roll tilt under
-collective throttle.
+In `AUTO` mode with a single symmetric `CollisionShape3D`, the CoM coincides
+with the body origin.  For a drone with heavy mass concentrations (battery,
+camera gimbal) that are offset from the hull centre, use `CUSTOM` mode and
+supply the weighted-average offset.
+
+Verification check for a symmetric quad:
+
+- Sum of motor positions: $\sum \mathbf{p}_i = \mathbf{0}$ (body frame)
+- At hover throttle, body attitude remains level with no pitch/roll drift
+
+A non-zero sum or a persistent tilt under collective throttle indicates a
+CoM/thrust misalignment.  Fix by moving thrusters, adjusting `center_of_mass`,
+or rebalancing component masses.
 
 ---
 
@@ -293,25 +430,27 @@ collective throttle.
 
 ### 8.1 Ground effect — lift augmentation near a surface
 
-When a rotor operates within one rotor diameter of the ground, the airflow
-below the prop is partially blocked, creating a cushion of elevated pressure
-that augments lift.  The thrust increase is approximately:
+When a rotor operates within roughly one rotor diameter of the ground, the
+downwash is partially blocked, recirculating into an elevated-pressure cushion
+that augments lift.  The classical Cheeseman–Bennett relation for a single
+rotor in hover is:
 
-$$T_\text{IGE} = T_\text{OGE} \left(1 + \frac{k_\text{ge}}{(h / R)^2}\right)^{-1}$$
+$$\frac{T_\text{IGE}}{T_\text{OGE}} = \frac{1}{1 - \left(\dfrac{R}{4 z}\right)^2}$$
 
 where:
-- $T_\text{IGE}$ = thrust in ground effect
+- $T_\text{IGE}$ = thrust in ground effect at the same power setting
 - $T_\text{OGE}$ = thrust out of ground effect (free air)
-- $h$ = height above ground
 - $R$ = rotor radius
-- $k_\text{ge} \approx 0.25$ (empirical constant, varies by rotor design)
+- $z$ = hub height above ground ($z > R/4$ for the formula to be physical)
 
-Practical result: near the ground ($h < R$) the drone requires *less* throttle
-to hover.  Pilots experience this as the drone "floating" near landing.
+Behaviour: as $z \to \infty$, ratio $\to 1$ (no effect).  At $z = R$, ratio
+$\approx 1.07$ (7 % lift gain).  At $z = R/2$, ratio $\approx 1.33$ (33 %
+gain).  Pilots experience this as the drone "floating" just before landing.
 
-**Implementation note:** not yet modelled in `FlightThruster`.  To add it,
-cast a ray downward from each thruster and modulate `max_force` by the formula
-above when the ray distance is less than `2R`.
+**Implementation note:** not currently modelled by `FlightThruster`.  To add
+it, cast a ray downward from each rotor, measure $z$, and multiply the
+thruster's effective `max_force` by the Cheeseman–Bennett ratio when
+$z < 2R$ (above that the effect is negligible).
 
 ### 8.2 Fountain effect (multi-rotor interaction)
 
@@ -350,20 +489,29 @@ effects, and prop wash on nearby objects.
 
 ## 9. Lift (fixed-wing and gyroplane)
 
-For completeness, the thin-aerofoil lift equation used by fixed-wing
+For completeness, the steady-flow lift equation used by fixed-wing
 controllers:
 
 $$L = \frac{1}{2} \rho \, v^2 \, C_L \, A$$
 
-where $A$ is the wing planform area and $C_L$ depends on angle of attack $\alpha$:
+where $A$ is the wing planform area and $C_L$ depends on angle of attack
+$\alpha$.  For a thin symmetric aerofoil, inviscid theory gives:
 
-$$C_L \approx 2 \pi \sin(\alpha) \approx 2 \pi \alpha \quad \text{(small angles, thin aerofoil)}$$
+$$C_L \approx 2 \pi \, \alpha \quad \text{(radians, } |\alpha| \lesssim 10\degree\text{)}$$
 
-The corresponding induced drag:
+This linear relationship holds only up to the **stall angle** (typically
+$\alpha_\text{stall} \approx 12 \degree \text{ to } 18\degree$ depending on
+aerofoil and Reynolds number).  Beyond stall, $C_L$ drops abruptly as flow
+separates from the upper surface.  Any fixed-wing simulation must either
+clamp $\alpha$ below stall or model the post-stall drop explicitly.
+
+The corresponding lift-induced drag (ignoring parasitic drag):
 
 $$D_\text{induced} = \frac{L^2}{\frac{1}{2} \rho v^2 \pi A R_\text{aspect}}$$
 
 where $R_\text{aspect} = b^2 / A$ is the aspect ratio ($b$ = wingspan).
+Higher aspect ratios (gliders, $R_\text{aspect} > 10$) produce much less
+induced drag than low aspect ratios (delta wings, $R_\text{aspect} < 3$).
 
 ---
 
@@ -382,65 +530,114 @@ rear-motor thrust by the same amount.
 
 ### 10.2 Quadcopter full mixing matrix
 
-For an X-quad with motors at $(\pm r, 0, \pm r)$:
+For an X-quad with motors at body-frame positions
+$\text{FL}(-r, 0, -r)$, $\text{FR}(+r, 0, -r)$, $\text{RR}(+r, 0, +r)$,
+$\text{RL}(-r, 0, +r)$ and spin signs (+1 = CW, −1 = CCW) FL/RR = +1,
+FR/RL = −1 (see
+[quad-flight-controller-guide.md §3](quad-flight-controller-guide.md)):
 
 $$\begin{pmatrix} T_\text{FL} \\ T_\text{FR} \\ T_\text{RR} \\ T_\text{RL} \end{pmatrix}
-= \begin{pmatrix}
-1 & -1 & -1 & +1 \\
-1 & +1 & -1 & -1 \\
+= \frac{F_\text{max}}{4} \begin{pmatrix}
 1 & +1 & +1 & +1 \\
-1 & -1 & +1 & -1
+1 & -1 & +1 & -1 \\
+1 & -1 & -1 & +1 \\
+1 & +1 & -1 & -1
 \end{pmatrix}
 \begin{pmatrix}
 \text{throttle} \\ \text{roll} \\ \text{pitch} \\ \text{yaw}
-\end{pmatrix}
-\times \frac{F_\text{max}}{4}$$
+\end{pmatrix}$$
 
-Each output is clamped to $[0, F_\text{max}]$.  This matrix is the target
-for a fully mixed stabilised controller; the current `FlightQuadController`
-handles yaw only — pitch and roll mixing come from the attitude/PID layer
-(see [flight-controller-guide.md](flight-controller-guide.md)).
+Each row is the per-motor contribution of each command channel.  Reading
+columns:
+- **throttle** — all motors equal (collective lift).
+- **roll** (positive = roll right) — left-side motors (FL, RL) up, right-side
+  (FR, RR) down → body rolls right.
+- **pitch** (positive = pitch up / nose up) — front motors (FL, FR) down,
+  rear (RR, RL) up → body pitches nose-up.
+- **yaw** (positive = yaw left / CCW from above, matching Godot's +Y rotation
+  convention) — CCW-spinning motors (FR, RL, spin sign −1) raised, CW motors
+  (FL, RR, spin sign +1) lowered → net CCW drag torque on body.
+
+Each output is clamped to $[0, F_\text{max}]$.  This matrix is the target for
+a fully mixed stabilised controller.  The current `FlightQuadController`
+handles yaw only via this column plus an explicit `apply_torque` call; pitch
+and roll mixing come from the attitude / PID layer (see
+[flight-controller-guide.md](flight-controller-guide.md)).
 
 ---
 
 ## 11. PID control (stabilisation)
 
-### 11.1 PID formula
+### 11.1 Textbook PID
 
-The standard discrete PID with derivative on measurement (avoids derivative
-kick on setpoint change):
+The standard discrete PID on the *error* signal $e(t) = \theta_\text{target}
+- \theta_\text{measured}$:
 
-$$u(t) = K_P \, e(t) + K_I \sum_t e(t) \, \Delta t - K_D \frac{e(t) - e(t-1)}{\Delta t}$$
+$$u(t) = K_P \, e(t) + K_I \sum_k e(k) \, \Delta t + K_D \frac{e(t) - e(t-1)}{\Delta t}$$
 
-where:
-- $u(t)$ = controller output
-- $e(t) = \theta_\text{target} - \theta_\text{measured}$ = error
-- $K_P, K_I, K_D$ = proportional, integral, derivative gains
+where $K_P, K_I, K_D$ are proportional, integral, and derivative gains.
 
-### 11.2 Integral windup guard
+### 11.2 Derivative on measurement (preferred for flight control)
 
-When the controller output saturates (motor at min/max), the integral
-accumulates error it cannot act on.  Guard against this by clamping the
-integral state:
+The textbook form above suffers from **derivative kick** — when
+$\theta_\text{target}$ changes suddenly (e.g. player moves the stick), the
+abrupt step in $e$ causes a large spurious $D$ output.  The common fix is to
+take the derivative of the *measurement* $\theta$ rather than the error
+(their derivatives differ only in sign when the setpoint is constant):
 
-$$\int e \leftarrow \text{clamp}\left(\int e,\; -I_\text{max},\; +I_\text{max}\right)$$
+$$u(t) = K_P \, e(t) + K_I \sum_k e(k) \, \Delta t - K_D \frac{\theta(t) - \theta(t-1)}{\Delta t}$$
 
-Typically $I_\text{max} \approx 1.0$ (same range as the output [−1, 1]).
+For drone attitude stabilisation this is equivalent to using the gyro angular
+rate directly as the $D$ term — hence the common naming "PD on rate" in
+flight-control literature.
+
+### 11.3 Integral windup guard
+
+When the controller output saturates (motor at 0 or $F_\text{max}$), the
+integral continues accumulating error the controller cannot act on, causing
+overshoot when saturation releases.  Clamp the integral state:
+
+$$\int e \leftarrow \text{clamp}\!\left(\int e,\; -I_\text{max},\; +I_\text{max}\right)$$
+
+Typical $I_\text{max}$: large enough that $K_I \cdot I_\text{max}$ equals the
+full output range (e.g. $\pm 1$).  Better alternatives include *conditional
+integration* (only integrate when output is unsaturated) and *back-calculation*
+(reduce integral when output is clamped).
 
 ---
 
 ## 12. Euler angles and attitude representation
 
-### 12.1 Roll, pitch, yaw from basis
+### 12.1 Reading attitude from a Godot `Basis`
 
-Given the body's `Basis` $\mathbf{R}$:
+Godot's `Basis` stores the body's local axes as its three columns:
+`basis.x` is body-right, `basis.y` is body-up, `basis.z` is body-back
+(opposite of forward, which is $-Z$).  **Prefer reading attitude directly
+from these vectors rather than via Euler decomposition** — Euler forms are
+ambiguous across the $\pm 90\degree$ pitch singularity (gimbal lock) and
+order-dependent, whereas the column vectors are unambiguous.
 
-- **Roll** (rotation about $-Z$ forward axis): $\phi = \operatorname{atan2}(R_{YX}, R_{XX})$
-- **Pitch** (rotation about $+X$ right axis): $\theta = \arcsin(-R_{ZX})$
-- **Yaw** (rotation about $+Y$ up axis): $\psi = \operatorname{atan2}(R_{ZZ}, R_{ZY})$
+Useful attitude queries in terms of the basis:
 
-In GDScript: `body.rotation` gives Euler angles directly (in radians, XYZ
-order).  Prefer `body.basis` for vector operations to avoid gimbal lock.
+| Query | Expression |
+|---|---|
+| Body-forward vector (world) | $-\text{basis}.z$ |
+| Body-up vector (world) | $\text{basis}.y$ |
+| Body-right vector (world) | $\text{basis}.x$ |
+| Tilt angle from vertical | $\arccos(\text{basis}.y \cdot \hat{Y}_\text{world})$ |
+| Heading (yaw about world +Y) | $\operatorname{atan2}(-\text{basis}.z.x,\; -\text{basis}.z.z)$ |
+
+If Euler angles are required (e.g. for a stabilised controller comparing
+target pitch/roll to current), Godot provides `basis.get_euler()`, which
+returns a `Vector3` using the default YXZ Tait–Bryan order.  Components:
+
+- `.y` — yaw (rotation about world Y), range $[-\pi, \pi]$.
+- `.x` — pitch (rotation about intermediate X), range $[-\pi/2, \pi/2]$.
+- `.z` — roll (rotation about body Z), range $[-\pi, \pi]$.
+
+Gimbal lock occurs when pitch $\approx \pm 90\degree$ and yaw/roll become
+indistinguishable — do not rely on Euler angles for any manoeuvre that may
+cross vertical.
 
 ### 12.2 Quaternion interpolation
 
@@ -448,9 +645,11 @@ For smooth orientation interpolation (e.g. waypoint facing direction):
 
 $$\mathbf{q}_\text{interp} = \text{slerp}(\mathbf{q}_a, \mathbf{q}_b, t)$$
 
-In GDScript: `Quaternion.slerp(target_quat, t)`.  Prefer slerp over
-converting through Euler angles for any interpolation that crosses $\pm 90°$
-pitch.
+In GDScript: `quat_a.slerp(quat_b, t)`, or
+`basis_a.get_rotation_quaternion().slerp(basis_b.get_rotation_quaternion(), t)`
+if you have bases.  Always prefer slerp over interpolating through Euler
+angles, which produces non-uniform angular velocity and misbehaves near
+gimbal lock.
 
 ---
 
