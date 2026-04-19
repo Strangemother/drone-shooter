@@ -1,9 +1,8 @@
-[gd_scene load_steps=7 format=3 uid="uid://dhkbp32hmy3kw"]
+[gd_scene load_steps=6 format=3 uid="uid://dhkbp32hmy3kw"]
 
 [ext_resource type="Script" uid="uid://c3yiv13mript5" path="res://Drones/Scripts/DroneScript.gd" id="1_q7bwi"]
 [ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="2_85430"]
 [ext_resource type="PackedScene" uid="uid://drsnpwe6p0dts" path="res://Drones/Scenes/thruster_collision_shape.tscn" id="3_q7bwi"]
-[ext_resource type="Script" uid="uid://c1pwn6awbtwn0" path="res://Drones/Scripts/DroneThrusterScript.gd" id="4_5j6xk"]
 [ext_resource type="Script" uid="uid://bcp20udj0xh8e" path="res://Drones/Scripts/FlightControllers/QuadFlightController.gd" id="4_q7bwi"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
@@ -24,35 +23,28 @@ shape = SubResource("BoxShape3D_b08s0")
 
 [node name="Thruster0" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, -1.1)
-script = ExtResource("4_5j6xk")
 max_force = 4.0
-ground_effect_radius = 2.0
 ground_effect_max = 10.0
-ground_effect_gain = 10.0
+ground_effect_gain = 30.0
+ground_effect_debug = true
 
 [node name="Thruster1" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, -1.1)
-script = ExtResource("4_5j6xk")
 max_force = 4.0
-ground_effect_radius = 2.0
 ground_effect_max = 10.0
-ground_effect_gain = 10.0
+ground_effect_gain = 30.0
 
 [node name="Thruster2" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, 1.1)
-script = ExtResource("4_5j6xk")
 max_force = 4.0
-ground_effect_radius = 2.0
 ground_effect_max = 10.0
-ground_effect_gain = 10.0
+ground_effect_gain = 30.0
 
 [node name="Thruster3" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, 1.1)
-script = ExtResource("4_5j6xk")
 max_force = 4.0
-ground_effect_radius = 2.0
 ground_effect_max = 10.0
-ground_effect_gain = 10.0
+ground_effect_gain = 30.0
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")

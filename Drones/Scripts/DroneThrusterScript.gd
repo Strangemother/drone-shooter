@@ -102,7 +102,7 @@ class_name FlightThruster
 ##   • gain = 0.0 → ground effect fully disabled (same as flag off).
 ## The final value is still clamped to `ground_effect_max`, so push
 ## that cap up too if you want the overdriven boost to actually land.
-@export_range(0.0, 10.0, 0.01) var ground_effect_gain: float = 1.0
+@export_range(0.0, 30.0, 0.01) var ground_effect_gain: float = 1.0
 
 ## Print per-physics-tick diagnostics for this thruster's ground
 ## effect: ray-hit state, measured height, and computed multiplier.

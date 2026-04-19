@@ -381,4 +381,5 @@ mesh = SubResource("SphereMesh_0ldo7")
 
 [node name="DroneScene" parent="." instance=ExtResource("10_16q18")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 4, -28)
+collision_mask = 11
 gravity_scale = 1.0
