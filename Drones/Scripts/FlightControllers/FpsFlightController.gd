@@ -85,6 +85,10 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var forward: float = get_axis_value(pitch_backward_action, pitch_forward_action)
 	var yaw: float = get_axis_value(yaw_left_action, yaw_right_action)
 
+	# TEMP DEBUG: remove after yaw is confirmed working.
+	if not is_zero_approx(yaw):
+		print("[FPS] yaw=%.2f  action_names=(%s / %s)" % [yaw, yaw_left_action, yaw_right_action])
+
 	var direction := Vector3(strafe, lift, -forward)
 	if direction == Vector3.ZERO and is_zero_approx(yaw):
 		_silence_all(thrusters)
