@@ -49,7 +49,7 @@ max_force = 3.0
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
-yaw_reaction_torque = 2.0
+prop_torque_coefficient = 0.4
 yaw_tilt_angle = 0.25
 yaw_idle_thrust = 0.25
 yaw_throttle_attenuation = 0.7
