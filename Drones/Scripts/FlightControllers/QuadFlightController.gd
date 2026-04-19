@@ -111,6 +111,19 @@ class_name FlightQuadController
 ## can be tuned independently.
 @export_range(0.0, 1.0, 0.001) var roll_authority: float = 0.25
 
+## Flip the roll response if the drone rolls the wrong way when you
+## push the roll stick.  Defaults to the Godot convention (body +X =
+## right, camera looking along −Z); a scene whose forward-facing
+## camera is rotated 180° about Y (a common content-import artefact)
+## will see roll appear reversed from the pilot's viewpoint — set
+## this to `true` to correct it rather than editing the scene.
+@export var invert_roll: bool = false
+
+## Flip the pitch response.  Same story as `invert_roll`: useful when
+## the scene's visual "forward" is body +Z rather than the Godot
+## default −Z, which inverts the pilot's pitch perception.
+@export var invert_pitch: bool = false
+
 ## Propeller torque coefficient (metres) — combined $\kappa R$ from
 ## the momentum-theory rotor torque model $Q = \kappa\,T\,R$
 ## (flight-dynamics-equations.md §5.1).  The net yaw torque on the
@@ -202,6 +215,14 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var roll:  float = get_axis_value(roll_left_action,      roll_right_action)   # + = roll right
 	var pitch: float = get_axis_value(pitch_backward_action, pitch_forward_action) # + = pitch forward / nose down
 	var yaw:   float = get_axis_value(yaw_left_action,       yaw_right_action)    # + = yaw right (CW)
+
+	# Apply pilot-orientation inversions (mirror-image scenes, camera
+	# rotated 180°, etc.).  `invert_yaw` is on the parent and handled
+	# by the existing yaw sign flow; pitch/roll are local here.
+	if invert_roll:
+		roll = -roll
+	if invert_pitch:
+		pitch = -pitch
 
 	# ── Collective channel ──────────────────────────────────────────
 	var collective: float = lift * power_authority
