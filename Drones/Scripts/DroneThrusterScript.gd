@@ -90,8 +90,20 @@ class_name FlightThruster
 ## as h → R, so we clamp to prevent unphysical infinite lift when
 ## the drone is touching or below the rotor plane.  Real helicopters
 ## see roughly 1.3–1.5× thrust at very low hover heights; 1.5 is a
-## safe, game-feel-friendly ceiling.
-@export_range(1.0, 3.0, 0.01) var ground_effect_max: float = 1.5
+## safe, game-feel-friendly ceiling.  Raise this (together with
+## `ground_effect_gain`) for an overdriven "development" cushion.
+@export_range(1.0, 10.0, 0.01) var ground_effect_max: float = 1.5
+
+## Gain applied to the *boost* portion of the IGE multiplier.
+## Lets you exaggerate the cushion without changing rotor radius or
+## ray length.  The Cheeseman–Bennett multiplier M ≥ 1 is rewritten
+## as 1 + gain·(M − 1), so:
+##   • gain = 1.0 → physically correct Cheeseman–Bennett.
+##   • gain = 3.0 → three times the boost at every height.
+##   • gain = 0.0 → ground effect fully disabled (same as flag off).
+## The final value is still clamped to `ground_effect_max`, so push
+## that cap up too if you want the overdriven boost to actually land.
+@export_range(0.0, 10.0, 0.01) var ground_effect_gain: float = 1.0
 
 var target_body: RigidBody3D
 var _ground_ray: RayCast3D
@@ -181,7 +193,11 @@ func _compute_ground_effect_multiplier() -> float:
 	if denom <= 0.0:
 		return ground_effect_max
 
-	return clampf(1.0 / denom, 1.0, ground_effect_max)
+	var raw: float = 1.0 / denom
+	# Overdrive: scale just the boost (raw − 1), keeping the floor at 1.0
+	# so "no effect" is still exactly 1.0 regardless of gain.
+	var boosted: float = 1.0 + ground_effect_gain * (raw - 1.0)
+	return clampf(boosted, 1.0, ground_effect_max)
 
 
 ## Set throttle in [0, 1].  Direction stays whatever `force_axis` was.
