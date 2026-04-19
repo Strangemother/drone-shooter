@@ -1,28 +1,45 @@
-## Quadcopter-style flight controller — CW/CCW differential yaw.
+## Quadcopter-style flight controller — full X-quad mixing matrix.
 ##
-## Extends FlightFpsController; translation (throttle, pitch, strafe) is
-## identical to the parent.  Yaw is replaced with the angular-momentum
-## model used by real quadcopters:
+## Implements the classic four-channel mix
+## (flight-dynamics-equations.md §10.2):
 ##
-##   1. Per-motor throttle differential — CW motors are throttled up
-##      while CCW motors are throttled down (or vice versa), mirroring
-##      how real ESCs change prop RPM to create a yaw couple.
+##     ⎡T_FL⎤     ⎡ 1  +1  +1  +1 ⎤   ⎡ throttle ⎤
+##     ⎢T_FR⎥  =  ⎢ 1  -1  +1  -1 ⎥ · ⎢   roll   ⎥
+##     ⎢T_RR⎥     ⎢ 1  -1  -1  +1 ⎥   ⎢   pitch  ⎥
+##     ⎣T_RL⎦     ⎣ 1  +1  -1  -1 ⎦   ⎣    yaw   ⎦
 ##
-##   2. Body-Y reaction torque — simulates the aerodynamic drag
-##      couple spinning props create.  Each prop drags on the air;
-##      the reaction pushes the body the opposite way.  Differential
-##      RPM upsets the balance, leaving a net torque
+## Each motor's throttle is a linear sum of the four command
+## channels, with per-motor coefficients derived from the motor's
+## position in the body's local XZ plane and its CW/CCW spin sign.
+## Output is clamped to [0, 1] per motor.
 ##
-##          τ_yaw = κR · Σ sᵢ · Tᵢ
+## ── Behavioural change from earlier revisions ──────────────────────
+## Earlier versions of this controller inherited translation (lift /
+## strafe / pitch) from `FlightFpsController`, which composed those
+## inputs into a single thrust vector and let off-centre application
+## produce pitch/roll torques as a side effect.  That works for a
+## loose "arcade" feel but produces noisy pitch/roll authority and
+## cannot represent correct attitude-rate responses.
 ##
-##      where Tᵢ is each motor's *current* thrust (N).  Because Tᵢ
-##      already reflects the differential from layer (1), yaw
-##      authority scales naturally with throttle — no hand-tuned
-##      constant torque (see flight-dynamics-equations.md §5).
+## This version interprets the inputs the way a real quad pilot does:
+##   • throttle (lift)    → collective thrust (all motors equal)
+##   • roll   (strafe)    → differential thrust left↔right (attitude rate)
+##   • pitch  (forward)   → differential thrust front↔rear (attitude rate)
+##   • yaw    (yaw)       → differential CW↔CCW thrust (prop-drag couple)
 ##
-## Both layers are active simultaneously so the response matches
-## real-quad feel: the motors visibly change speed *and* the body
-## receives the correct angular impulse.
+## The drone therefore **tilts** to fly laterally rather than
+## strafing flat.  This is standard ACRO-mode behaviour and is a
+## prerequisite for a PID-stabilised angle/horizon controller on top.
+##
+## ── Reaction torque layer (unchanged) ──────────────────────────────
+## The physically-derived yaw torque from
+## flight-dynamics-equations.md §5.2,
+##
+##     τ_yaw = κR · Σ sᵢ · Tᵢ
+##
+## is still applied on top of the mixing matrix.  Tᵢ is read from
+## each thruster's *ramped* `throttle` property so the reaction
+## torque lags RPM exactly like the linear thrust does (PowerRamp).
 ##
 ## ── Motor spin-sign convention ────────────────────────────────────
 ## Spin signs are derived automatically from motor position in the
@@ -33,10 +50,19 @@
 ##     Rear-Right  (x > 0, z > 0) → x·z > 0 → CW  (+1)
 ##     Rear-Left   (x < 0, z > 0) → x·z < 0 → CCW (−1)
 ##
-## At equal throttle the CW and CCW drag torques cancel → no yaw.
-## To yaw, the two diagonal pairs are offset against each other.
 ## Override per-motor signs via `spin_sign_override` for non-standard
 ## layouts (e.g. hex, Y-frame, V-tail).
+##
+## ── Input convention ──────────────────────────────────────────────
+##   • throttle_up   stick = +lift   = collective up
+##   • roll_right    stick = +roll   = body rolls right (right side down)
+##   • pitch_forward stick = +pitch  = nose drops (forward flight)
+##   • yaw_right     stick = +yaw    = body yaws CW viewed from above
+##
+## (Note: "pitch_forward = nose down" is the standard RC sim
+## convention.  Godot's matrix convention uses "positive pitch =
+## nose up"; the sign is flipped internally so the user input
+## matches pilot expectation.)
 ##
 ## ── What is NOT used from the parent ──────────────────────────────
 ## The following FlightFpsController exports are inherited but have
@@ -46,8 +72,8 @@
 ##   • `yaw_throttle_attenuation` — not applicable to this model.
 ##   • `_motor_rest_basis`       — internal cache, never populated.
 ##
-## All other parent exports (`power_authority`, throttle/pitch/roll/
-## strafe action names) function identically to the parent.
+## `power_authority` still applies, but now as the *collective* gain
+## rather than a whole-thrust-vector gain.
 extends FlightFpsController
 class_name FlightQuadController
 
@@ -62,6 +88,28 @@ class_name FlightQuadController
 ## If yaw feels weak at low throttle, raise `yaw_motor_idle` so the
 ## differential has some baseline RPM to act on.
 @export_range(0.0, 1.0, 0.001) var yaw_differential: float = 0.25
+
+## Peak pitch throttle delta applied at full pitch-stick deflection.
+## Front motors (z < 0) are raised by this amount and rear motors
+## (z > 0) lowered (or vice versa, depending on stick sign), clamped
+## to [0, 1] per motor.
+##
+## This is the "pitch" column of the X-quad mixing matrix
+## (flight-dynamics-equations.md §10.2).  Larger values produce a
+## higher attitude rate at full stick; start small and raise until
+## the drone tips at a pleasant speed without saturating motors on
+## a gentle stick push.
+@export_range(0.0, 1.0, 0.001) var pitch_authority: float = 0.25
+
+## Peak roll throttle delta applied at full roll-stick deflection.
+## Left motors (x < 0) raised, right motors (x > 0) lowered (or
+## vice versa), clamped to [0, 1] per motor.
+##
+## This is the "roll" column of the X-quad mixing matrix.  Usually
+## set equal to `pitch_authority` for symmetric feel; for drones
+## with non-square frames (inertia different on each axis) the two
+## can be tuned independently.
+@export_range(0.0, 1.0, 0.001) var roll_authority: float = 0.25
 
 ## Propeller torque coefficient (metres) — combined $\kappa R$ from
 ## the momentum-theory rotor torque model $Q = \kappa\,T\,R$
@@ -148,85 +196,87 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	if thrusters.is_empty():
 		return
 
-	# ── Build base thrust from player input ─────────────────────────
-	# Magnitude-preserving composition — see fps-flight-controller-
-	# guide.md §3 for the full rationale.  The direction is shared by
-	# all motors; only the per-motor *throttle* differs for yaw.
-	var lift:    float = get_axis_value(throttle_down_action,   throttle_up_action)
-	var strafe:  float = get_axis_value(roll_left_action,       roll_right_action)
-	var forward: float = get_axis_value(pitch_backward_action,  pitch_forward_action)
-	var yaw:     float = get_axis_value(yaw_left_action,        yaw_right_action)
+	# ── Read pilot stick inputs ─────────────────────────────────────
+	# All in [−1, 1].  Inherited action names from FlightControllerBase.
+	var lift:  float = get_axis_value(throttle_down_action,  throttle_up_action)
+	var roll:  float = get_axis_value(roll_left_action,      roll_right_action)   # + = roll right
+	var pitch: float = get_axis_value(pitch_backward_action, pitch_forward_action) # + = pitch forward / nose down
+	var yaw:   float = get_axis_value(yaw_left_action,       yaw_right_action)    # + = yaw right (CW)
 
-	var direction   := Vector3(strafe, lift, -forward)
-	var base_magnitude: float = minf(direction.length(), 1.0)
+	# ── Collective channel ──────────────────────────────────────────
+	var collective: float = lift * power_authority
 
-	# Unit direction all motors will push along.  Falls back to UP so
-	# yaw-only input (no translation) gives motors a valid direction.
-	var thrust_dir: Vector3 = Vector3.UP
-	if base_magnitude > 0.0001:
-		thrust_dir = direction / base_magnitude  # cheap unit vector
-
-	# Player-commanded base throttle, bounded by power_authority.
-	var base_scalar: float = base_magnitude * power_authority
-
-	# ── Yaw motor idle floor ────────────────────────────────────────
-	# Raise the floor for all motors proportionally to |yaw| so the
-	# differential has some RPM to work with even at zero throttle.
+	# Raise collective to a floor when the yaw stick is deflected so
+	# the yaw differential has non-zero motor RPM to work with — see
+	# `yaw_motor_idle` doc for the rationale.  Only yaw gets an idle
+	# floor; pitch/roll authority is expected to scale with throttle
+	# (matches real-drone feel at low RPM).
 	var yaw_abs: float = absf(yaw)
-	var idle_floor: float = 0.0
 	if yaw_motor_idle > 0.0 and yaw_abs > 0.0:
-		idle_floor = yaw_motor_idle * yaw_abs * power_authority
+		var floor: float = yaw_motor_idle * yaw_abs * power_authority
+		if collective < floor:
+			collective = floor
 
-	var effective_base: float = maxf(base_scalar, idle_floor)
-
-	# ── Per-motor throttle differential ─────────────────────────────
-	# motor_throttle = clamp(effective_base − yaw × differential × spin, 0, 1)
+	# ── Per-motor X-quad mix ────────────────────────────────────────
+	# motor_thr = clamp(
+	#   collective
+	#   − sign(x_local) · roll  · roll_authority     (right side down on +roll)
+	#   + sign(z_local) · pitch · pitch_authority    (nose down on +pitch)
+	#   − spin          · yaw   · yaw_differential,  (CW body on +yaw)
+	#   0, 1)
 	#
-	# Sign derivation (yaw > 0 = body yaws CCW = left in Godot +Y):
-	#   CCW motor (spin = −1): effective_base − yaw × diff × (−1)
-	#                        = effective_base + yaw × diff  →  raised  ✓
-	#   CW  motor (spin = +1): effective_base − yaw × diff × (+1)
-	#                        = effective_base − yaw × diff  →  lowered ✓
-	# Differential RPM makes CCW props spin faster, CW slower →
-	# net CCW drag tops CW drag → reaction torque on body is CW...
-	# wait — drag on body IS the reaction, so:
-	#   faster CCW prop → more CCW drag on air → +Y torque on body ✓
-	var any_active := false
-
-	# Running Σ sᵢ·Tᵢ (signed thrust, N) accumulated across motors.
-	# Used below to derive the physically-scaled yaw torque.
+	# Sign derivation (cross-reference §10.2):
+	#   • roll  — matrix coeff = −sign(x); we use the same convention
+	#             because user "roll right" matches matrix "positive roll".
+	#   • pitch — matrix coeff = −sign(z) with matrix "positive pitch"
+	#             meaning nose-UP; our "pitch_forward" is nose-DOWN, so
+	#             the coefficient flips to +sign(z).
+	#   • yaw   — matrix coeff = +spin with matrix "positive yaw"
+	#             meaning CCW body rotation; our "yaw_right" is CW, so
+	#             the coefficient flips to −spin.  (Unchanged from the
+	#             prior yaw-only version of this controller.)
 	var signed_thrust_sum: float = 0.0
+	var any_active := false
 
 	for t in thrusters:
 		if not (t is Node3D):
 			continue
 
-		var spin: int = _get_spin_sign(t as Node3D, body)
+		var motor := t as Node3D
+		var spin: int = _get_spin_sign(motor, body)
+
+		# Position in body-local frame (handles nested motors).
+		var local_pos: Vector3
+		if body != null:
+			local_pos = body.to_local(motor.global_position)
+		else:
+			local_pos = motor.transform.origin
+
+		var roll_sign:  float = -signf(local_pos.x)
+		var pitch_sign: float = signf(local_pos.z)
+
 		var motor_thr: float = clampf(
-			effective_base - yaw * yaw_differential * float(spin),
+			collective
+			+ roll_sign  * roll  * roll_authority
+			+ pitch_sign * pitch * pitch_authority
+			- float(spin) * yaw   * yaw_differential,
 			0.0, 1.0
 		)
 
-		# `set_thrust_directed` separates direction from magnitude and
-		# avoids an extra normalise inside set_thrust.
+		# All motors push straight UP in their own local frame; the
+		# body's tilt does the lateral-flight work (ACRO-mode style).
+		# `set_thrust_directed` writes the command; the thruster's
+		# PowerRamp will lag the actual applied throttle.
 		if t.has_method("set_thrust_directed"):
-			t.set_thrust_directed(thrust_dir, motor_thr)
+			t.set_thrust_directed(Vector3.UP, motor_thr)
 		elif t.has_method("set_thrust"):
-			t.set_thrust(thrust_dir * motor_thr)
+			t.set_thrust(Vector3.UP * motor_thr)
 
-		# Tᵢ = max_force · throttle.  `get_max_force` is the
-		# FlightThruster API; fall back to 1.0 for exotic thrusters
-		# so the torque still scales with the relative differential.
-		#
-		# Read the thruster's *actual* throttle property rather than
-		# the `motor_thr` we just commanded — on a thruster that
-		# implements PowerRamp, `t.throttle` holds the ramped value
-		# that is being applied as force this tick, so the yaw
-		# reaction torque lags motor RPM in exactly the same way.
-		# The commanded value is saved to `_commanded_throttle`
-		# inside the thruster and the next physics tick will ramp
-		# toward it.  Falls back to `motor_thr` for exotic thrusters
-		# that don't expose a `throttle` property.
+		# Tᵢ = max_force · throttle.  Read the thruster's *actual*
+		# (ramped) throttle for the reaction-torque sum so yaw
+		# authority lags RPM identically to the linear thrust.
+		# Falls back to the just-commanded `motor_thr` for exotic
+		# thrusters that don't expose a `throttle` property.
 		var motor_max: float = 1.0
 		if t.has_method("get_max_force"):
 			motor_max = t.get_max_force()
@@ -240,17 +290,9 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	# ── Yaw reaction torque (physically derived) ────────────────────
 	# τ_yaw = κR · Σ sᵢ · Tᵢ   (flight-dynamics-equations.md §5.2)
-	#
-	# With our spin convention (spin = +1 CW, −1 CCW), yaw > 0 raises
-	# CCW throttle and lowers CW throttle, making the signed sum
-	# negative.  Applying `+κR · sum` along `body.basis.y` therefore
-	# produces a −Y torque, i.e. CW rotation from above — matching
-	# "yaw right stick → drone yaws right".  No extra sign flip
-	# needed; unlike the previous constant-torque layer, the sign
-	# falls out of the thrust split directly.
-	#
-	# `apply_torque` applies for one physics step, identical to how
-	# FlightThruster calls `apply_force`.
+	# Sign falls out of the thrust split — with spin=+1 CW and
+	# yaw>0 CW-desired, CW motors are lowered so Σ sᵢ·Tᵢ < 0, and
+	# `+κR · sum` along body-Y gives a −Y torque → CW rotation ✓.
 	if body != null and prop_torque_coefficient > 0.0 and absf(signed_thrust_sum) > 0.0001:
 		body.apply_torque(body.basis.y * prop_torque_coefficient * signed_thrust_sum)
 
