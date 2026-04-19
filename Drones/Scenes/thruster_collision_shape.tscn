@@ -9,3 +9,8 @@ height = 0.2
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("CylinderMesh_qw11p")
+
+[node name="RayCast3D" type="RayCast3D" parent="."]
+target_position = Vector3(0, -2, 0)
+debug_shape_custom_color = Color(0, 0.90405, 0.933594, 1)
+debug_shape_thickness = 4
