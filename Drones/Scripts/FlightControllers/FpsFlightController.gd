@@ -61,10 +61,15 @@ func update_mix(_body: RigidBody3D, thrusters: Array[Node]) -> void:
 		_silence_all(thrusters)
 		return
 
-	# Normalise so diagonal inputs aren't √2 stronger than cardinals,
-	# then scale by player authority.  The thruster will treat the
-	# resulting length as its throttle.
-	var thrust := direction.normalized() * power_authority
+	# Preserve the *magnitude* of the player input — the trigger
+	# value at 0.3 should produce 30% throttle, not full throttle.
+	# `normalized()` would discard that magnitude and only keep the
+	# direction.  Instead we clamp the length to 1.0 so a worst-case
+	# diagonal like (1, 1, 1) (\u221a3 \u2248 1.73) stays inside the
+	# thruster's [0, 1] throttle range.  Then scale by player
+	# authority for the inspector-tunable ceiling.
+	var magnitude: float = min(direction.length(), 1.0)
+	var thrust: Vector3 = direction.normalized() * magnitude * power_authority
 
 	for t in thrusters:
 		if t.has_method("set_thrust"):
