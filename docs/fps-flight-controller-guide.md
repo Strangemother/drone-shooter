@@ -355,7 +355,142 @@ body. Consistent with `flight-controller-guide.md` §3 — verify the body's
 
 ---
 
-## 8. Workflow checklist for the next session
+## 8. The yaw model (tilt-rotor with idle)
+
+> **Status:** reflects the working implementation after the *yaw-feel* pass.
+> Covers the choices behind `yaw_tilt_angle`, `yaw_idle_thrust`, and
+> `yaw_throttle_attenuation` in `FpsFlightController.gd`.
+>
+> **Prerequisite:** §3 (magnitude preservation) and
+> [AGENTS.md](../AGENTS.md) — specifically *"prefer physical manipulation
+> over mathematical equivalence"*. The yaw model is a direct application of
+> that rule.
+
+### 8.1 What the code actually does
+
+Yaw is produced by *physically rotating each motor node* around its own
+arm axis (the horizontal vector from body centre out to the motor). The
+thruster's `force_axis` is local `UP`, so tilting the motor's `Basis`
+tilts the thrust vector with it. The controller sets the transform; the
+thruster does its normal job. No per-motor vector math is performed in
+the controller — it just mutates node transforms and calls `set_thrust`
+with one common vector.
+
+All four motors receive the *same signed tilt angle* around their
+outward-pointing hinge. Because each hinge points radially outward from
+centre, the four tangential pushes reinforce around body-Y (pure yaw
+couple) and cancel translationally.
+
+Rest bases are cached on first sight per motor and the tilted basis is
+rebuilt fresh from rest every tick, so there is no rotation drift.
+
+### 8.2 Why "mechanical yaw" happens without care
+
+This is a **tilt-rotor** model, not a **quadcopter** model. The
+difference matters because:
+
+- A real quad produces yaw from **differential reaction torque** between
+  its CW and CCW propellers. Its motors *must* spin to hover, so yaw
+  authority is always "hot" — you never notice the coupling to throttle.
+- A tilt-rotor produces yaw by **redirecting existing thrust** tangent
+  to the arm. With *zero* base thrust (player not commanding throttle,
+  pitch, or roll), there is nothing to redirect, and yaw does nothing.
+
+An FPS controller has no hover assist — at rest the thrusters really are
+off — so the raw tilt model only yaws *while the player is also
+commanding translation*. That coupling is what felt "mechanical."
+
+### 8.3 The idle-thrust fix
+
+`yaw_idle_thrust` raises the `y` component of `base_thrust` to a small
+floor whenever the yaw stick is deflected:
+
+```
+idle = yaw_idle_thrust * |yaw| * (power_authority * idle_scale)
+base_thrust.y = max(base_thrust.y, idle)
+```
+
+Key properties (do not break these when refactoring):
+
+- **Only raises the floor.** If the player is already commanding more
+  throttle than the idle, their input wins. The idle never fights the
+  player's own throttle curve.
+- **Scales with `|yaw|`.** A barely-touched yaw stick adds a barely-audible
+  idle. Binary "on/off" idle feels like a motor jump.
+- **Independent of throttle direction.** Idle only touches `y`; strafe
+  and pitch pass through untouched.
+- **Set to 0 to disable** and revert to strict-tilt behaviour for
+  testing.
+
+Physical interpretation: the ESCs keep the props spinning whenever the
+player asks to yaw, so the tilt has airflow/thrust to redirect. This is
+a *feel mimic*, not a real-quad yaw model — both real behaviours (prop
+idle, reaction torque) happen to feel similar from the pilot's seat.
+
+### 8.4 Throttle attenuation — biasing yaw toward the idle path
+
+With idle thrust alone, yaw authority at full throttle becomes *larger*
+than at hover (the same tilt angle redirects a larger vector). That
+stacks and over-rotates. `yaw_throttle_attenuation` scales the tilt
+angle down as player-commanded translation magnitude rises:
+
+```
+yaw_angle *= 1.0 - yaw_throttle_attenuation * magnitude
+```
+
+Important: `magnitude` here is the **pre-idle** base-thrust magnitude —
+the raw player translation input. Using the post-idle magnitude would
+make the yaw idle self-cancel against its own attenuation.
+
+Tuning shape:
+
+- `0.0` — original behaviour; tilt constant regardless of throttle.
+- `1.0` — tilt fades to zero at full translation; nearly all yaw
+  authority flows through the idle-thrust path.
+- `0.6` (default) — tilt at full throttle is 40% of its hover value;
+  yaw rate feels consistent across the throttle range.
+
+### 8.5 What **not** to do (yaw-specific)
+
+- **Do not compute a rotated thrust vector and hand it to an
+  unrotated motor.** That is mathematically equivalent but violates
+  the AGENTS.md directive, hides the mechanism from the editor
+  viewport, and makes future additions (gimbal, variable-pitch rotor,
+  animation) harder than they should be. Rotate the *motor node*.
+- **Do not accumulate rotations tick-over-tick.** Always rebuild each
+  motor's basis from its cached rest basis. Applying `rotated()` to
+  the previous tick's basis will drift on any non-commutative
+  combination of rotations.
+- **Do not idle-thrust whenever yaw is non-zero — idle-thrust *scaled
+  by `|yaw|`*.** A constant idle at all times is `yaw_idle_thrust > 0`
+  behaviour *by itself*, but the scaling is what keeps the stick feel
+  proportional.
+- **Do not normalise away the yaw axis input.** Same magnitude rule as
+  §3 applies — `yaw` must reach the tilt calculation unflattened.
+- **Do not try to solve the feel with `power_authority`.** It's a
+  ceiling; raising it amplifies *everything* including the coupling
+  problem. The three yaw exports are the correct lever.
+
+### 8.6 When the true quad yaw model arrives
+
+The tilt-rotor model is the intended foundation for a later
+reaction-torque yaw implementation (tracked separately). When that
+lands:
+
+- Each thruster will need a CW/CCW spin group.
+- Yaw input will become differential throttle across the groups rather
+  than a tilt.
+- `yaw_idle_thrust` and `yaw_throttle_attenuation` will likely become
+  irrelevant to the new controller and should stay exclusive to this
+  FPS controller — keep them as part of the tilt-rotor contract, not
+  as shared `FlightControllerBase` state.
+
+Do not retrofit reaction-torque yaw into `FpsFlightController`. Build
+a sibling controller (the rule from §11.1 still applies).
+
+---
+
+## 9. Workflow checklist for the next session
 
 - [ ] Have you read this document and `thruster-features.md`?
 - [ ] If you're implementing analog input: are you preserving magnitude
@@ -373,7 +508,7 @@ body. Consistent with `flight-controller-guide.md` §3 — verify the body's
 
 ---
 
-## 9. Glossary
+## 10. Glossary
 
 | Term | Meaning |
 |---|---|
@@ -386,7 +521,7 @@ body. Consistent with `flight-controller-guide.md` §3 — verify the body's
 
 ---
 
-## 10. When in doubt
+## 11. When in doubt
 
 1. **Don't add stabilisation to the FPS controller.** Build a new controller
    that inherits `FlightControllerBase` instead. The FPS controller's value
