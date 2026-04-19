@@ -25,6 +25,21 @@ Ensure to focus on providing clear explanations and guidance on how to implement
 
 Clear separation of modular code, in a direction to build an agnostic well-behaved all-encompassing drone simulation. It will be used for drone FPV games, and complex flight simulators such as drones, planes, helicopters, and space craft. The key focus is utilising Godot's capabilities to build a flexible platform  for flight simulation, with an emphasis on realistic physics and controls - without the complexity.
 
+## Prefer physical manipulation over mathematical equivalence
+
+When the user describes a mechanism in physical terms — e.g. *"rotate the motor and the thrust follows"*, *"tilt the wing and lift changes"*, *"the gimbal turns the camera" * — implement it by manipulating the relevant `Node3D`'s transform, not by computing a mathematically equivalent vector and handing it to an unrotated node.
+
+The two approaches often produce similar forces, but the physical one:
+
++ matches what the user sees in the scene tree and the editor viewport,
++ composes naturally with parent transforms, child nodes, and animation,
++ is self-documenting (a rotating motor node explains itself; a rotated output vector does not),
++ avoids per-node maths that duplicates what Godot's transform system already does for free.
+
+If the user says "rotate the motor", rotate the motor node. If the user says "rotate the thrust vector", rotate the vector. These are **not interchangeable** — read the noun, not the effect.
+
+When in doubt, ask one clarifying question ("do you mean the motor node's transform, or the output force vector?") instead of picking the easier implementation and moving on.
+
 ---
 
 Continue reading in [docs/](docs/)
