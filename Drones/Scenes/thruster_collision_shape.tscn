@@ -1,9 +1,12 @@
 [gd_scene load_steps=3 format=3 uid="uid://drsnpwe6p0dts"]
 
-[ext_resource type="Script" uid="uid://c1pwn6awbtwn0" path="res://Drones/Scripts/DroneThrusterScript.gd" id="1_po1bi"]
-
 [sub_resource type="SphereShape3D" id="SphereShape3D_b08s0"]
 radius = 0.306051
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_qw11p"]
+top_radius = 0.3
+bottom_radius = 0.3
+height = 0.2
 
 [node name="Node3D" type="Node3D"]
 
@@ -11,5 +14,6 @@ radius = 0.306051
 
 [node name="MotorCollisionShape1" type="CollisionShape3D" parent="RigidBody3D"]
 shape = SubResource("SphereShape3D_b08s0")
-script = ExtResource("1_po1bi")
-max_force = 4.0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CylinderMesh_qw11p")
