@@ -27,25 +27,25 @@ shape = SubResource("BoxShape3D_b08s0")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.2, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_0vxhe")
-max_force = 3.0
+max_force = 4.0
 
 [node name="MotorCollisionShape2" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.2, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_0vxhe")
-max_force = 3.0
+max_force = 4.0
 
 [node name="MotorCollisionShape3" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.2, -0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_0vxhe")
-max_force = 3.0
+max_force = 4.0
 
 [node name="MotorCollisionShape4" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.2, 0.66)
 shape = SubResource("SphereShape3D_b08s0")
 script = ExtResource("3_0vxhe")
-max_force = 3.0
+max_force = 4.0
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
