@@ -163,7 +163,11 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# physics step — identical semantics to how FlightThruster calls
 	# `apply_force`.
 	if body != null and yaw_abs > 0.0:
-		body.apply_torque(body.basis.y * yaw * yaw_reaction_torque)
+		# Negated: positive Y torque in Godot's right-hand system rotates
+		# CCW (left) when viewed from above, so we need -yaw to match
+		# "yaw right input → CW rotation".  The differential loop above
+		# is already signed correctly; only the torque layer needed flipping.
+		body.apply_torque(body.basis.y * -yaw * yaw_reaction_torque)
 
 	# Silence all engines when player releases every input.
 	if not any_active and yaw_abs < 0.001:
