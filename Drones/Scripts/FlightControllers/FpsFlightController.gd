@@ -17,15 +17,27 @@
 ## basis follows the parent body, "forward" means "wherever the body
 ## is pointing" — which is what an FPS player expects.
 ##
-## ── Yaw model (iteration 2) ────────────────────────────────────────
-## Yaw is produced by tilting each motor's thrust vector *tangent
-## to its own arm* — front/rear motors tilt in ±X, side motors tilt
-## in ±Z.  All four tangential components point the same rotational
-## way around Y, which sums into a pure yaw couple with no net
-## translation.  The tilt is built from sin/cos so total thrust
-## magnitude per motor is preserved — yawing does not change lift.
-## Works in full hover because the tangential component is added
-## rather than derived from rotating an existing horizontal part.
+## ── Yaw model (iteration 2 — motor tilt) ───────────────────────────
+## Yaw is produced by *physically rotating each motor node* around
+## its own arm axis (the horizontal line from body centre out to the
+## motor).  Because a thruster's `force_axis` is `UP` in its own
+## local frame, tilting the motor tilts the thrust vector along
+## with it — the controller does not compute any rotated vectors;
+## it just sets the motor's transform and lets the thruster do its
+## normal job.
+##
+## This is the "obvious planar" model: move the motor, the impulse
+## follows.  It is visually self-evident in the editor (you can see
+## each motor tilt), works in dead hover (the tilt adds a horizontal
+## component that would otherwise be absent), and produces a pure
+## yaw couple because each motor's tangential push cancels its
+## opposite-side partner's translationally while reinforcing about
+## body-Y.
+##
+## The controller caches each motor's rest transform on first use
+## (or after `reset_state()`) and rebuilds the tilted transform
+## fresh every tick, so there is no drift from accumulated
+## rotations.
 ##
 ## ── How the thrust vector becomes movement ─────────────────────────
 ## Every tick we build a unit-ish direction vector from input and
@@ -53,21 +65,31 @@ class_name FlightFpsController
 @export_range(0.0, 1.0, 0.001) var power_authority: float = 1.0
 
 ## Peak yaw tilt angle (radians) applied to each motor at full
-## yaw-stick deflection.  Each motor tilts its thrust tangent to
-## its own arm (perpendicular to the arm direction, in the body's
-## horizontal plane) — front/rear motors tilt in ±X, left/right
-## motors tilt in ±Z.  The four tangential components form a pure
-## yaw couple, so the drone spins on Y without drifting.
+## yaw-stick deflection.  The controller rotates each motor node
+## around its own arm axis by this angle (signed so all four
+## motors push the same rotational way around body-Y), yielding
+## a pure yaw couple.
 ##
-## Unlike a Y-rotation of the base thrust, this mechanism adds a
-## horizontal component even when the base thrust is purely
-## vertical — yaw works in full hover.
+## Works in full hover because tilting the motor adds a horizontal
+## thrust component that is independent of the base thrust.
 @export_range(0.0, 1.5708, 0.001) var yaw_tilt_angle: float = 0.35
 
 ## Sign flip for the yaw response.  If pushing the yaw stick spins
 ## the drone the wrong way, toggle this in the inspector rather
 ## than editing code.
 @export var invert_yaw: bool = false
+
+
+# Rest basis of each motor, captured the first time we see it.
+# We rebuild each motor's transform from its rest state every
+# tick so tilt commands don't accumulate frame-to-frame.
+var _motor_rest_basis: Dictionary = {}
+
+
+func reset_state() -> void:
+	# Drop cached rest bases; they'll be re-captured on next tick.
+	# Call this after programmatically repositioning motors.
+	_motor_rest_basis.clear()
 
 
 func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
@@ -85,9 +107,6 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var yaw: float = get_axis_value(yaw_left_action, yaw_right_action)
 
 	var direction := Vector3(strafe, lift, -forward)
-	if direction == Vector3.ZERO and is_zero_approx(yaw):
-		_silence_all(thrusters)
-		return
 
 	# Preserve the *magnitude* of the player input — the trigger
 	# value at 0.3 should produce 30% throttle, not full throttle.
@@ -101,59 +120,60 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	if magnitude > 0.0:
 		base_thrust = direction.normalized() * magnitude * power_authority
 
-	# ── Yaw: tilt each motor's thrust tangent to its own arm ───────
-	# Model: imagine each motor sits on a hinge at its arm's end.
-	# The hinge axis runs *along the arm* (from body centre outward
-	# to the motor).  Tilting the hinge swings the motor's thrust
-	# in the direction perpendicular to the arm (and to Y).
-	#
-	# For a front motor (arm along +Z), perpendicular-to-arm in the
-	# horizontal plane is ±X.  For a side motor (arm along +X), it
-	# is ±Z.  The general rule for a motor at body-local offset
-	# (x, _, z) is:
-	#     tangent_dir = Vector3(-z, 0, x).normalized() * sign(...)
-	# which is the 2D perpendicular in the XZ plane — the same as
-	# `Vector3.UP.cross(arm)`.  Signing this so all motors push
-	# clockwise (or all anti-clockwise) around the Y axis gives a
-	# pure yaw couple.
-	#
-	# The magnitude we inject is `base_thrust.length() * sin(angle)`
-	# so the sideways push scales with how hard the motor is already
-	# pushing — zero throttle = zero yaw authority, which matches a
-	# real rotor.  The vertical component is scaled by cos(angle)
-	# so the *total* thrust magnitude stays equal to the base, i.e.
-	# yawing never increases or decreases lift.
+	# ── Yaw: rotate each motor node around its arm axis ────────────
+	# The motor's arm axis is the horizontal vector from the body
+	# centre to the motor.  Rotating the motor node around this
+	# axis tilts its local UP — and therefore its thrust — tangent
+	# to the arm.  All four motors tilted by the same signed angle
+	# around their outward-pointing arm axis produce tangential
+	# pushes that add up to a pure yaw couple (see yaw-model
+	# header above for the derivation).
 	var yaw_angle: float = yaw * yaw_tilt_angle
 	if invert_yaw:
 		yaw_angle = -yaw_angle
 
-	var tilt_sin: float = sin(yaw_angle)
-	var tilt_cos: float = cos(yaw_angle)
-
 	for t in thrusters:
-		if not t.has_method("set_thrust"):
+		if not (t is Node3D):
 			continue
 
-		var per_thrust := base_thrust
-		if not is_zero_approx(yaw_angle) and body != null:
-			# arm = horizontal offset from body centre to this motor.
-			# Its length is the lever arm; its direction tells us
-			# which way "tangent to the arm" points.
-			var body_offset: Vector3 = body.to_local(t.global_position)
-			var arm := Vector3(body_offset.x, 0.0, body_offset.z)
-			if arm.length_squared() > 0.0001:
-				# tangent_dir is perpendicular to arm in the XZ plane,
-				# oriented so all motors push the same rotational way
-				# around Y (positive yaw = anti-clockwise viewed from
-				# above, i.e. right-hand rule about +Y).
-				var tangent_dir: Vector3 = Vector3.UP.cross(arm).normalized()
-				var base_magnitude: float = base_thrust.length()
-				# Preserve total thrust: the vertical (and any pre-
-				# existing horizontal) part is scaled by cos, while
-				# sin times magnitude goes into the tangent direction.
-				per_thrust = base_thrust * tilt_cos + tangent_dir * base_magnitude * tilt_sin
+		# Capture rest basis the first time we see each motor.
+		if not _motor_rest_basis.has(t):
+			_motor_rest_basis[t] = (t as Node3D).transform.basis
 
-		t.set_thrust(per_thrust)
+		var rest_basis: Basis = _motor_rest_basis[t]
+
+		# Compute the hinge axis in the motor's *parent* frame
+		# (which is the body frame, since motors are direct
+		# children of the RigidBody3D).  This is just the
+		# horizontal part of the motor's local position — no
+		# matter how the body itself is oriented in the world,
+		# the local offset is constant per motor.
+		if yaw_angle != 0.0 and body != null:
+			var local_pos: Vector3 = (t as Node3D).transform.origin
+			var arm := Vector3(local_pos.x, 0.0, local_pos.z)
+			if arm.length_squared() > 0.0001:
+				var hinge: Vector3 = arm.normalized()
+				# Rotate the rest basis around the hinge (in
+				# parent/body frame) by the yaw angle.  All four
+				# motors get the same signed angle; because each
+				# hinge points outward from the centre, the four
+				# tangential tilts swirl the same way around Y.
+				(t as Node3D).transform.basis = rest_basis.rotated(hinge, yaw_angle)
+			else:
+				(t as Node3D).transform.basis = rest_basis
+		else:
+			# No yaw input — snap back to rest so we don't hold a
+			# stale tilt from a previous tick.
+			(t as Node3D).transform.basis = rest_basis
+
+		# Finally, hand the base thrust to the motor.  The motor's
+		# now-tilted basis will rotate `UP` into the correct world
+		# direction for us — no per-motor vector math required.
+		if t.has_method("set_thrust"):
+			t.set_thrust(base_thrust)
+
+	if base_thrust == Vector3.ZERO and yaw_angle == 0.0:
+		_silence_all(thrusters)
 
 
 ## Cut all engines — used when input is fully released so they
