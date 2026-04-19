@@ -162,7 +162,7 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# touched.
 	var yaw_abs: float = absf(yaw)
 	if yaw_idle_thrust > 0.0 and yaw_abs > 0.0:
-		var idle: float = yaw_idle_thrust * yaw_abs * (power_authority*.8)
+		var idle: float = yaw_idle_thrust * yaw_abs * power_authority
 		if base_thrust.y < idle:
 			base_thrust.y = idle
 
