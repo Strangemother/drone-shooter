@@ -79,6 +79,22 @@ class_name FlightFpsController
 ## than editing code.
 @export var invert_yaw: bool = false
 
+## Baseline throttle applied along local UP while the yaw stick is
+## deflected, scaled by |yaw|.  Exists because this is a tilt-rotor
+## yaw model: the motors produce a yaw couple by redirecting their
+## thrust tangentially, so with zero thrust there is nothing to
+## redirect and yaw authority vanishes at idle.  Real quadcopters
+## never have this problem — their props must spin to hover, so
+## yaw (from differential prop RPM) is always hot.  Adding a small
+## idle along UP whenever the player asks for yaw mimics that
+## "props are already spinning" feel without touching the rest of
+## the flight model.
+##
+## Only raises the UP component to the idle floor; if the player
+## is already commanding more throttle than the idle, their input
+## wins and this has no effect.  Set to 0 to disable.
+@export_range(0.0, 1.0, 0.001) var yaw_idle_thrust: float = 0.15
+
 
 # Rest basis of each motor, captured the first time we see it.
 # We rebuild each motor's transform from its rest state every
@@ -119,6 +135,23 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var base_thrust: Vector3 = Vector3.ZERO
 	if magnitude > 0.0:
 		base_thrust = direction.normalized() * magnitude * power_authority
+
+	# ── Yaw idle: give the tilt something to redirect ──────────────
+	# With a tilt-rotor yaw model, the yaw couple is produced by
+	# rotating each motor's thrust vector tangent to its arm.  If
+	# the motors are producing zero thrust (player not touching
+	# throttle/pitch/roll), the tilt rotates a zero vector and the
+	# drone doesn't yaw.  Real quads hide this because their props
+	# must spin to hover; we mimic it by raising the UP component
+	# of base_thrust to a small floor whenever the yaw stick is
+	# deflected.  Scaled by |yaw| so a light yaw input adds only a
+	# light idle — no audible motor jump when the stick is barely
+	# touched.
+	var yaw_abs: float = absf(yaw)
+	if yaw_idle_thrust > 0.0 and yaw_abs > 0.0:
+		var idle: float = yaw_idle_thrust * yaw_abs * power_authority
+		if base_thrust.y < idle:
+			base_thrust.y = idle
 
 	# ── Yaw: rotate each motor node around its arm axis ────────────
 	# The motor's arm axis is the horizontal vector from the body
