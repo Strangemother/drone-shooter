@@ -13,10 +13,11 @@
 > first — `FlightQuadController` extends `FlightFpsController` and all
 > translation (throttle, pitch, strafe) behaviour is unchanged from that guide.
 > Read [units-reference.md](units-reference.md) for physical unit context
-> before tuning `yaw_reaction_torque`.
+> before tuning `prop_torque_coefficient`.
 >
 > **Status:** reflects the working implementation of `FlightQuadController`
-> after the reaction-torque sign fix.
+> after the physical-torque derivation (yaw torque now scales with actual
+> per-motor thrust rather than a hand-tuned constant).
 
 ---
 
@@ -180,11 +181,22 @@ spinning props produce.  Without an additional torque, the in-simulator yaw
 authority would come *only* from the off-centre force differential (which is
 weak for a symmetric quad with short arms).
 
-The `apply_torque` call directly injects the missing angular momentum:
+The controller therefore injects the missing angular momentum directly.
+Crucially, the magnitude is **derived from the per-motor thrust you already
+computed**, not from a separate tuning constant — so yaw authority scales
+naturally with throttle:
 
 ```gdscript
-body.apply_torque(body.basis.y * -yaw * yaw_reaction_torque)
+# inside update_mix, accumulated across motors in the mixing loop:
+#   signed_thrust_sum += spin * motor.get_max_force() * motor_thr
+
+body.apply_torque(body.basis.y * prop_torque_coefficient * signed_thrust_sum)
 ```
+
+This is the direct implementation of the momentum-theory torque model
+$\tau_\text{yaw} = \kappa R \sum_i s_i T_i$ from
+[flight-dynamics-equations.md](flight-dynamics-equations.md) §5.  The
+export `prop_torque_coefficient` *is* $\kappa R$ (in metres).
 
 `body.basis.y` is the drone's own *local* up axis expressed in world space.
 This ensures the torque always rotates the drone about its own yaw axis,
@@ -192,20 +204,22 @@ regardless of roll or pitch attitude.
 
 ### 5.2 Sign convention
 
-Godot's right-hand coordinate system: a **positive** torque about `+Y` rotates
-the body **CCW** (left) when viewed from above.
+Godot's right-hand coordinate system: a **positive** torque about `+Y`
+rotates the body **CCW** (left) when viewed from above.
 
-| yaw input | desired rotation | torque sign |
-|---|---|---|
-| +1 (right) | CW | negative → `−yaw` ✓ |
-| −1 (left) | CCW | positive → `−yaw` ✓ |
+With our spin convention (`spin = +1` CW, `−1` CCW), positive yaw input
+raises CCW motors and lowers CW motors, so $\sum s_i T_i$ becomes
+*negative*.  Applying `+κR · sum` along `body.basis.y` therefore produces a
+−Y torque → CW body rotation from above → "yaw right stick → drone yaws
+right" ✓.
 
-Hence the negation: `body.basis.y * -yaw * yaw_reaction_torque`.
+Unlike the earlier constant-torque implementation, **no explicit sign flip
+is needed** — the sign falls out of the differential RPM split directly.
+This also removes the two-layers-fighting class of bug (the differential
+loop and the torque layer cannot disagree because they share the same
+thrust values).
 
-The differential loop uses the *opposite* convention (positive yaw right is
-directly handled by the `spin` term in the formula), so the two layers agree.
-
-### 5.3 Tuning `yaw_reaction_torque`
+### 5.3 Tuning `prop_torque_coefficient`
 
 `apply_torque` is called every physics tick — it is an angular *acceleration*,
 not an impulse.  The body's angular velocity grows each frame the stick is
@@ -215,20 +229,26 @@ The physical analogue is gyroscopic inertia and aerodynamic drag on the
 spinning body.  In Godot this is controlled by `angular_damp` on the
 `RigidBody3D` node (Inspector → `RigidBody3D` section).
 
+Real 5-inch quad props have $\kappa R \approx 0.01\text{–0.03}$ m
+($\kappa \approx 0.05\text{–0.15}$, $R \approx 0.0635$ m).  Game drones
+with unrealistic mass or moment of inertia may need larger values.
+
 **Recommended tuning sequence:**
 
 1. Set `angular_damp` on the `RigidBody3D` to **3.0–5.0**.  This simulates
    the prop-mass gyroscopic resistance real quads have and prevents runaway
    spin.
-2. Start `yaw_reaction_torque` at `mass × 2.0` (for a 0.5 kg drone: start
-   at ~1 N·m).
+2. Start `prop_torque_coefficient` at **0.02** (mid of physical range).
 3. Raise until yaw rate at full stick feels responsive but not twitchy.
+   Because torque now scales with throttle, low-throttle yaw will still
+   feel softer than high-throttle yaw — raise `yaw_motor_idle` if low-
+   throttle authority is too weak.
 4. If the drone continues spinning after releasing the stick, raise
-   `angular_damp` rather than lowering `yaw_reaction_torque`.
+   `angular_damp` rather than lowering `prop_torque_coefficient`.
 
-See [units-reference.md](units-reference.md) §5 for how to convert between
-an observed angular velocity (deg/s) and the torque and damping values
-required to produce it.
+See [units-reference.md](units-reference.md) §5 for the physics-based
+formula that converts a target yaw rate (deg/s) into a value for
+`prop_torque_coefficient`.
 
 ---
 
@@ -258,7 +278,7 @@ effective CG of thrust and cause unwanted pitch/roll under throttle.
 |---|---|---|
 | `power_authority` | 1.0 | Inherited from parent |
 | `yaw_differential` | 0.25 | Motor throttle delta at full yaw |
-| `yaw_reaction_torque` | `mass × 2` | Tune with `angular_damp` |
+| `prop_torque_coefficient` | 0.02 | m (= $\kappa R$); tune with `angular_damp` |
 | `yaw_motor_idle` | 0.10 | Idle floor when yawing at zero throttle |
 | `angular_damp` (on RigidBody3D) | 3.0–5.0 | Set on the *drone body*, not the controller |
 
@@ -281,15 +301,16 @@ Recommended default bindings:
 
 ### 7.1 "Yaw is backwards — spinning left when I push right"
 
-**Cause (most likely):** `apply_torque` sign is mismatched.  Godot's `+Y`
-torque is CCW — without negating `yaw`, pushing right produced a CCW rotation.
+**Cause (most likely):** `spin_sign_override` entries are inverted, or the
+drone's motor layout does not follow the X-quad convention.  Use the
+override dict to correct individual motors.
 
-**Fix:** ensure the torque line reads `body.basis.y * -yaw * yaw_reaction_torque`.
-*(Resolved in the current implementation.)*
+**Alternative cause:** all four motors are on a body axis (x or z ≈ 0),
+so `_get_spin_sign` defaulted every one to CW.  Check the console for
+the "motor … is on a body axis" warning and assign overrides explicitly.
 
-**Alternative cause:** `spin_sign_override` entries are inverted, or the
-drone's motor layout does not follow the X-quad convention.  Use the override
-dict to correct individual motors.
+*(The old "`apply_torque` sign mismatch" bug no longer applies — the
+torque sign now derives from the thrust split directly; see §5.2.)*
 
 ### 7.2 "Yaw feels abrupt / twitchy even at low torque values"
 
@@ -297,16 +318,17 @@ dict to correct individual motors.
 damping on the body.  The drone accelerates continuously.
 
 **Fix:** raise `angular_damp` on the `RigidBody3D` (see §5.3).  Do not
-compensate by reducing `yaw_reaction_torque` to near-zero — that removes
-low-throttle yaw authority, which the differential alone cannot replace.
+compensate by reducing `prop_torque_coefficient` to near-zero — that
+removes yaw authority in proportion across the whole throttle range,
+which the differential alone cannot replace.
 
 ### 7.3 "Drone doesn't yaw at all at low throttle"
 
 **Cause A:** `yaw_motor_idle` is 0 and the differential has nothing to act
 on.  **Fix:** Set `yaw_motor_idle` to 0.05–0.15.
 
-**Cause B:** `yaw_reaction_torque` is 0 and `yaw_differential` is too small
-for the drone's inertia.  **Fix:** raise `yaw_reaction_torque`.
+**Cause B:** `prop_torque_coefficient` is 0 and `yaw_differential` is too
+small for the drone's inertia.  **Fix:** raise `prop_torque_coefficient`.
 
 ### 7.4 "Drone drifts to one side while yawing"
 

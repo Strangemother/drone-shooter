@@ -126,7 +126,7 @@ body instead of changing the project setting.
 | Property | Unit | Where |
 |---|---|---|
 | `apply_torque(τ)` argument | N·m | RigidBody3D method |
-| `yaw_reaction_torque` export | N·m | `FlightQuadController` inspector |
+| `prop_torque_coefficient` export | m (= $\kappa R$) | `FlightQuadController` inspector |
 
 Torque is angular force.  It causes angular acceleration according to:
 
@@ -190,20 +190,35 @@ Typical real-quad yaw rates:
 | FPV freestyle | 500 – 900 °/s |
 | Racing full deflection | > 1000 °/s |
 
-### 5.3 Tuning `yaw_reaction_torque` to a target yaw rate
+### 5.3 Tuning `prop_torque_coefficient` to a target yaw rate
 
-At steady state (angular velocity constant) torque equals damping force:
+At steady state (angular velocity constant) yaw torque equals damping
+torque:
 
-$$\tau = \text{angular\_damp} \times I \times \omega_\text{target}$$
+$$\tau_\text{yaw} = \text{angular\_damp} \times I \times \omega_\text{target}$$
 
-Rearranging:
+Substituting the physical torque model
+$\tau_\text{yaw} = \kappa R \sum_i s_i T_i$ and rearranging:
 
-$$\text{yaw\_reaction\_torque} = \text{angular\_damp} \times I \times \omega_\text{target}$$
+$$\kappa R = \frac{\text{angular\_damp} \times I \times \omega_\text{target}}{\sum_i s_i T_i}$$
 
-Example — 0.5 kg drone, $I \approx 0.0045$, `angular_damp = 4.0`, target
-400 °/s (6.98 rad/s):
+You need a value for $\sum_i s_i T_i$ at full yaw deflection.  For a
+symmetric four-motor quad at idle-only thrust (no lift/pitch/roll input),
+with `yaw_motor_idle = m`, `yaw_differential = d`, `max_force = F`, and
+full yaw stick:
 
-$$\tau = 4.0 \times 0.0045 \times 6.98 \approx 0.13~\mathrm{N \cdot m}$$
+$$\sum_i s_i T_i \approx 2 F \left( \text{clamp}(m - d, 0, 1) - \text{clamp}(m + d, 0, 1) \right)$$
+
+(The factor 2 accounts for the two CW + two CCW motors contributing to
+the signed sum.)
+
+Example — 0.5 kg drone, $I \approx 0.0045$, `angular_damp = 4.0`,
+`max_force = 4.0 N`, `yaw_motor_idle = 0.1`, `yaw_differential = 0.25`,
+target 400 °/s (6.98 rad/s):
+
+$$\sum_i s_i T_i = 2 \times 4.0 \times (0 - 0.35) = -2.8~\mathrm{N}$$
+
+$$|\kappa R| = \frac{4.0 \times 0.0045 \times 6.98}{2.8} \approx 0.045~\mathrm{m}$$
 
 Start there and tune upward if yaw feels weak.
 
@@ -265,7 +280,7 @@ realistic starting range for the initial 0.3–0.5 kg drone.
 | Export | Unit | Realistic range | Notes |
 |---|---|---|---|
 | `yaw_differential` | dimensionless [0–1] | 0.15 – 0.35 | Motor Δthrottle |
-| `yaw_reaction_torque` | N·m | 0.05 – 0.5 | Scale with mass × 0.3 |
+| `prop_torque_coefficient` | m (= $\kappa R$) | 0.01 – 0.05 | Physical $\approx$ 0.02 for 5-inch props; game drones may need more |
 | `yaw_motor_idle` | dimensionless [0–1] | 0.05 – 0.15 | Idle floor |
 
 ### RigidBody3D (set on drone body node, not the controller)

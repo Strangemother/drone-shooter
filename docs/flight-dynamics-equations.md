@@ -313,12 +313,17 @@ slowing the other by $-\Delta T$ gives:
 
 $$\tau_\text{yaw} = 2 \kappa R \, \Delta T \quad \text{(quadcopter, single pair)}$$
 
-**In the simulator:** `FlightQuadController` collapses the constants
-$\kappa R$ and the per-pair factor into a single inspector-tunable scalar
-`yaw_reaction_torque`, applied via
-`apply_torque(body.basis.y * -yaw * yaw_reaction_torque)`.  This torque acts
-about the body's local Y axis, so it correctly rotates the drone about its
-own up axis regardless of attitude.
+**In the simulator:** `FlightQuadController` exposes $\kappa R$ directly
+as the `prop_torque_coefficient` export (units of metres).  The per-motor
+thrust $T_i = \text{max\_force}_i \cdot \text{motor\_throttle}_i$ is
+already available from the yaw-differential mixing step, so the torque
+is applied as
+`apply_torque(body.basis.y * prop_torque_coefficient * Σ sᵢ·Tᵢ)`.
+The sign falls out of the thrust split — no hand-tuned negation is
+needed.  This torque acts about the body's local Y axis, so it correctly
+rotates the drone about its own up axis regardless of attitude, and it
+scales naturally with throttle (unlike the earlier constant-torque
+implementation).
 
 ### 5.3 Steady-state yaw rate
 
@@ -329,7 +334,7 @@ $$\tau_\text{yaw} = d_\omega \, I \, \omega_\text{yaw}$$
 $$\omega_\text{yaw} = \frac{\tau_\text{yaw}}{d_\omega \, I}$$
 
 This gives the formula used in [units-reference.md §5.3](units-reference.md)
-to solve for `yaw_reaction_torque` from a target yaw rate.
+to solve for `prop_torque_coefficient` from a target yaw rate.
 
 ---
 

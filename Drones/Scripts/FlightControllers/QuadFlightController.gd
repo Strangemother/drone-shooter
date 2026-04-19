@@ -8,11 +8,17 @@
 ##      while CCW motors are throttled down (or vice versa), mirroring
 ##      how real ESCs change prop RPM to create a yaw couple.
 ##
-##   2. Direct `apply_torque` on the body — simulates the aerodynamic
-##      drag torque that spinning props generate.  This is the physical
-##      mechanism behind prop-torque yaw: each spinning prop drags on
-##      the air, and the reaction pushes the body the other way.
-##      Differential RPM upsets this balance, leaving a net torque.
+##   2. Body-Y reaction torque — simulates the aerodynamic drag
+##      couple spinning props create.  Each prop drags on the air;
+##      the reaction pushes the body the opposite way.  Differential
+##      RPM upsets the balance, leaving a net torque
+##
+##          τ_yaw = κR · Σ sᵢ · Tᵢ
+##
+##      where Tᵢ is each motor's *current* thrust (N).  Because Tᵢ
+##      already reflects the differential from layer (1), yaw
+##      authority scales naturally with throttle — no hand-tuned
+##      constant torque (see flight-dynamics-equations.md §5).
 ##
 ## Both layers are active simultaneously so the response matches
 ## real-quad feel: the motors visibly change speed *and* the body
@@ -51,29 +57,41 @@ class_name FlightQuadController
 ## versa), clamped to [0, 1] per motor.
 ##
 ## Increasing this value sharpens the motor-speed difference visible
-## during a yaw manoeuvre.  If yaw authority feels weak at low
-## throttle, raise `yaw_reaction_torque` instead — at zero thrust
-## there is nothing for the differential to act on (a zero-speed prop
-## produces no drag either way), so torque is the more direct knob.
+## during a yaw manoeuvre and, because τ_yaw is derived from the
+## resulting thrust split, also increases the body's yaw authority.
+## If yaw feels weak at low throttle, raise `yaw_motor_idle` so the
+## differential has some baseline RPM to act on.
 @export_range(0.0, 1.0, 0.001) var yaw_differential: float = 0.25
 
-## Torque (N·m) applied directly to the body per unit of yaw input.
-## This represents the aerodynamic drag couple from differential prop
-## RPM — the "angular momentum" mechanism — and is the primary source
-## of yaw authority at low throttle.
+## Propeller torque coefficient (metres) — combined $\kappa R$ from
+## the momentum-theory rotor torque model $Q = \kappa\,T\,R$
+## (flight-dynamics-equations.md §5.1).  The net yaw torque on the
+## body is then
 ##
-## Scale this against the drone's mass and moment of inertia.
-## A starting point: set to roughly 5–10× the body mass in kg.
-## If the drone spins too fast at full yaw, lower this value; if yaw
-## feels sluggish and unresponsive, raise it.
-@export_range(0.0, 2000.0, 1.0) var yaw_reaction_torque: float = 50.0
+##     τ_yaw = κR · Σ sᵢ · Tᵢ
+##
+## where sᵢ is each motor's spin sign and Tᵢ is its current thrust
+## in Newtons (`max_force · motor_throttle`).  Because Tᵢ already
+## encodes the yaw differential computed below, yaw authority scales
+## naturally with throttle — there is no separate "constant torque"
+## knob to tune.
+##
+## Physical values for a 5-inch quad are roughly 0.01–0.03 m
+## (κ ≈ 0.05–0.15, R ≈ 0.0635 m).  Game drones with unrealistic mass
+## or moment of inertia may need larger values for a responsive feel;
+## the range is widened accordingly.  If yaw is too twitchy, lower
+## this; if it feels sluggish, raise it.
+@export_range(0.0, 1.0, 0.001) var prop_torque_coefficient: float = 0.02
 
 ## Minimum throttle floor applied to *all* motors when the yaw stick
 ## is deflected, scaled by |yaw|.  Keeps props "spinning" during a
 ## pure-yaw input so the differential has something to act on.
 ##
 ## Analogous to `yaw_idle_thrust` in the parent tilt-rotor controller.
-## Set to 0 to disable (rely entirely on `yaw_reaction_torque`).
+## Set to 0 to rely entirely on the player-commanded base thrust; at
+## zero base throttle and zero idle, all Tᵢ are zero and the derived
+## τ_yaw collapses to zero as well (a zero-RPM prop produces no
+## drag — physically correct, but means yaw authority disappears).
 @export_range(0.0, 1.0, 0.001) var yaw_motor_idle: float = 0.10
 
 ## Per-thruster spin-sign overrides.
@@ -133,6 +151,11 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# wait — drag on body IS the reaction, so:
 	#   faster CCW prop → more CCW drag on air → +Y torque on body ✓
 	var any_active := false
+
+	# Running Σ sᵢ·Tᵢ (signed thrust, N) accumulated across motors.
+	# Used below to derive the physically-scaled yaw torque.
+	var signed_thrust_sum: float = 0.0
+
 	for t in thrusters:
 		if not (t is Node3D):
 			continue
@@ -150,24 +173,32 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		elif t.has_method("set_thrust"):
 			t.set_thrust(thrust_dir * motor_thr)
 
+		# Tᵢ = max_force · throttle.  `get_max_force` is the
+		# FlightThruster API; fall back to 1.0 for exotic thrusters
+		# so the torque still scales with the relative differential.
+		var motor_max: float = 1.0
+		if t.has_method("get_max_force"):
+			motor_max = t.get_max_force()
+		signed_thrust_sum += float(spin) * motor_max * motor_thr
+
 		if motor_thr > 0.0:
 			any_active = true
 
-	# ── Yaw reaction torque ─────────────────────────────────────────
-	# Applies the net angular impulse that differential prop RPM
-	# produces via aerodynamic drag.  Scaled along the body's current
-	# local-Y axis so it always rotates around the drone's own "up",
-	# regardless of the drone's attitude in the world.
+	# ── Yaw reaction torque (physically derived) ────────────────────
+	# τ_yaw = κR · Σ sᵢ · Tᵢ   (flight-dynamics-equations.md §5.2)
 	#
-	# `apply_torque` in _physics_process applies a torque for one
-	# physics step — identical semantics to how FlightThruster calls
-	# `apply_force`.
-	if body != null and yaw_abs > 0.0:
-		# Negated: positive Y torque in Godot's right-hand system rotates
-		# CCW (left) when viewed from above, so we need -yaw to match
-		# "yaw right input → CW rotation".  The differential loop above
-		# is already signed correctly; only the torque layer needed flipping.
-		body.apply_torque(body.basis.y * -yaw * yaw_reaction_torque)
+	# With our spin convention (spin = +1 CW, −1 CCW), yaw > 0 raises
+	# CCW throttle and lowers CW throttle, making the signed sum
+	# negative.  Applying `+κR · sum` along `body.basis.y` therefore
+	# produces a −Y torque, i.e. CW rotation from above — matching
+	# "yaw right stick → drone yaws right".  No extra sign flip
+	# needed; unlike the previous constant-torque layer, the sign
+	# falls out of the thrust split directly.
+	#
+	# `apply_torque` applies for one physics step, identical to how
+	# FlightThruster calls `apply_force`.
+	if body != null and prop_torque_coefficient > 0.0 and absf(signed_thrust_sum) > 0.0001:
+		body.apply_torque(body.basis.y * prop_torque_coefficient * signed_thrust_sum)
 
 	# Silence all engines when player releases every input.
 	if not any_active and yaw_abs < 0.001:
