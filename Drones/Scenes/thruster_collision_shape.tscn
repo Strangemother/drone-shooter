@@ -1,7 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://drsnpwe6p0dts"]
-
-[sub_resource type="SphereShape3D" id="SphereShape3D_b08s0"]
-radius = 0.306051
+[gd_scene load_steps=2 format=3 uid="uid://drsnpwe6p0dts"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_qw11p"]
 top_radius = 0.3
@@ -9,11 +6,6 @@ bottom_radius = 0.3
 height = 0.2
 
 [node name="Node3D" type="Node3D"]
-
-[node name="RigidBody3D" type="RigidBody3D" parent="."]
-
-[node name="MotorCollisionShape1" type="CollisionShape3D" parent="RigidBody3D"]
-shape = SubResource("SphereShape3D_b08s0")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("CylinderMesh_qw11p")
