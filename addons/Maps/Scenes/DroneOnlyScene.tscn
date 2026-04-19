@@ -363,10 +363,6 @@ cruise_speed = 10.0
 lookahead_distance = 10.0
 max_lead_distance = 10.0
 arrival_handoff_distance = 1.0
-curvature_speed_limit = null
-curvature_preview_distance = null
-curvature_weight = null
-curvature_min_speed_fraction = null
 loop_mode = 2
 
 [node name="Waypoint0" type="Node3D" parent="WaypointPath"]

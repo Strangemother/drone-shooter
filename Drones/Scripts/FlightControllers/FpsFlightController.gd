@@ -51,11 +51,11 @@ func update_mix(_body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# X = strafe (roll axis), Y = lift (throttle), Z = pitch.
 	# The signs match Godot's "forward = -Z" convention — pushing
 	# the pitch-forward action sends thrust along -Z (forward).
-    # Inherited from: (parent) FlightControllerBase.get_axis_value
+	# Inherited from: (parent) FlightControllerBase.get_axis_value
 	var lift: float = get_axis_value(throttle_down_action, throttle_up_action)
 	var strafe: float = get_axis_value(roll_left_action, roll_right_action)
 	var forward: float = get_axis_value(pitch_backward_action, pitch_forward_action)
-
+	print("lift=%.2f" % lift)
 	var direction := Vector3(strafe, lift, -forward)
 	if direction == Vector3.ZERO:
 		_silence_all(thrusters)
