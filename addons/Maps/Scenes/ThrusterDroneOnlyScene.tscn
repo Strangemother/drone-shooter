@@ -48,11 +48,11 @@ script = ExtResource("1_ecgx1")
 [node name="Structures" type="Node3D" parent="."]
 
 [node name="CSGBox3D" type="CSGBox3D" parent="Structures"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -5, 0)
 material_override = ExtResource("2_5tfl8")
 use_collision = true
 collision_mask = 10
-size = Vector3(300, 1, 300)
+size = Vector3(300, 10, 300)
 
 [node name="CSGBox3D25" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.987299, -43.7725)
