@@ -86,6 +86,39 @@ func get_axis_value(negative_action: StringName, positive_action: StringName) ->
 	return _action_strength(positive_action) - _action_strength(negative_action)
 
 
+## Betaflight-style expo / stick-shaping curve.  Input `x` is any
+## scalar in [−1, 1] (typically a stick axis from `get_axis_value`),
+## `amount` ∈ [0, 1] is the expo strength:
+##
+##   • 0.0 → output = input (perfectly linear, no shaping).
+##   • 0.5 → gentle softening near centre; common default for
+##           stabilised / "angle-mode" controllers.
+##   • 0.7 → aggressive softening; typical FPV ACRO tune.
+##   • 1.0 → pure cubic: out = x³.  Endpoints still at ±1 but the
+##           centre is very flat — small stick deflections barely
+##           register, full-stick still gives full output.
+##
+## Formula (Betaflight's `RC_EXPO`, exactly):
+##
+##     out = (1 − e)·x + e·x³
+##
+## Endpoints are preserved (|x|=1 → |out|=1 regardless of expo), so
+## you never lose max authority — only the *slope* near x=0 is
+## reduced.  This is the right shape for a quadratic-thrust plant
+## (T ∝ Ω²), which already adds gain with throttle; expo flattens
+## the stick's low-input region so small wiggles don't translate
+## into twitchy motor commands.
+##
+## Safe for any `amount` outside [0, 1] — clamped internally — but
+## values above 1 invert the slope (output moves *backwards* near
+## centre), which is never what you want in a flight controller.
+func apply_expo(x: float, amount: float) -> float:
+	if amount <= 0.0:
+		return x
+	var e: float = clampf(amount, 0.0, 1.0)
+	return (1.0 - e) * x + e * x * x * x
+
+
 func _action_strength(action: StringName) -> float:
 	if action == &"":
 		return 0.0

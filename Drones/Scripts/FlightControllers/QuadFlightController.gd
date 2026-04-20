@@ -78,6 +78,49 @@ extends FlightFpsController
 class_name FlightQuadController
 
 
+## ── Stick-shaping (expo) ──────────────────────────────────────────
+##
+## Betaflight-style RC expo, per-axis.  Formula (see `apply_expo` on
+## FlightControllerBase for the full doc):
+##
+##     out = (1 − e)·x + e·x³
+##
+## Endpoints are preserved (|stick|=1 always gives full authority);
+## only the slope around stick=0 is reduced.  This is the right knob
+## to reach for when the drone feels twitchy around centre stick —
+## particularly with the T ∝ Ω² thrust curve, which inherently adds
+## gain with throttle and makes small-input response snappier than
+## pilots tuned to a linear plant expect.
+##
+## Recommended starting values:
+##   • angle / stabilised controllers — 0.0 – 0.3
+##   • ACRO / FPV racing feel         — 0.5 – 0.7
+##   • cinematic slow flying          — 0.7 – 0.9
+##
+## Set all four to 0 to disable.  Throttle expo is usually left at 0
+## or kept small — a softened throttle makes hover trim finicky.
+
+## Expo on the lift / throttle stick.  Usually 0 (linear) — softening
+## the throttle makes hover-trim feel mushy.  Raise only if you want
+## a dead zone in the low-throttle region for cinematic flying.
+@export_range(0.0, 1.0, 0.001) var throttle_expo: float = 0.0
+
+## Expo on the roll stick.  Softens small deflections so tiny wiggles
+## don't produce twitchy roll commands.  0.5 is a gentle default;
+## 0.7 matches a common FPV ACRO tune.
+@export_range(0.0, 1.0, 0.001) var roll_expo: float = 0.5
+
+## Expo on the pitch stick.  Usually matched to `roll_expo` for
+## symmetric feel; set separately if pitch feels more or less
+## sensitive than roll on your drone.
+@export_range(0.0, 1.0, 0.001) var pitch_expo: float = 0.5
+
+## Expo on the yaw stick.  Often set a little higher than roll/pitch
+## (0.6–0.8) because yaw is typically used for fine heading
+## corrections rather than rapid full-stick manoeuvres.
+@export_range(0.0, 1.0, 0.001) var yaw_expo: float = 0.6
+
+
 ## Peak yaw throttle delta applied at full yaw-stick deflection.
 ## CW motors are raised by this amount and CCW motors lowered (or vice
 ## versa), clamped to [0, 1] per motor.
@@ -233,6 +276,14 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var roll:  float = get_axis_value(roll_left_action,      roll_right_action)   # + = roll right
 	var pitch: float = get_axis_value(pitch_backward_action, pitch_forward_action) # + = pitch forward / nose down
 	var yaw:   float = get_axis_value(yaw_left_action,       yaw_right_action)    # + = yaw right (CW)
+
+	# Apply per-axis expo (centre-stick softening).  Endpoints are
+	# preserved so max authority is unchanged — only the slope near
+	# stick=0 is reduced.  See `roll_expo` export doc.
+	lift  = apply_expo(lift,  throttle_expo)
+	roll  = apply_expo(roll,  roll_expo)
+	pitch = apply_expo(pitch, pitch_expo)
+	yaw   = apply_expo(yaw,   yaw_expo)
 
 	# Apply pilot-orientation inversions (mirror-image scenes, camera
 	# rotated 180°, etc.).  `invert_yaw` is on the parent and handled
