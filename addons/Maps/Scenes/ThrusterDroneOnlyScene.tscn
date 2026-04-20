@@ -32,7 +32,6 @@ fog_sun_scatter = 0.16
 fog_density = 0.8404
 
 [sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_ecgx1"]
-auto_exposure_enabled = true
 dof_blur_far_distance = 21.67
 dof_blur_far_transition = -1.0
 dof_blur_amount = 0.05
