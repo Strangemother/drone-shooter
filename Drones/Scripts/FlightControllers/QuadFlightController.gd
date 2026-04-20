@@ -157,6 +157,22 @@ class_name FlightQuadController
 ## drag — physically correct, but means yaw authority disappears).
 @export_range(0.0, 1.0, 0.001) var yaw_motor_idle: float = 0.10
 
+## Minimum collective floor applied to *all* motors when the pitch
+## or roll stick is deflected, scaled by the larger of |pitch| and
+## |roll|.  Exists for the same reason as `yaw_motor_idle` — with
+## the RPM-fraction thrust curve (T ∝ Ω²) a differential at zero
+## collective produces minuscule torque, because a motor asked for
+## e.g. 0.25 RPM only outputs 6.25 % thrust and the other side
+## clamps at zero.  A small idle floor gives the differential
+## working RPM so attitude authority persists at idle throttle —
+## the classic "stick alive even with no throttle" FPV feel.
+##
+## Set to 0 to revert to strict physical behaviour (zero throttle →
+## zero attitude authority).  Typical values 0.05–0.15; larger
+## values make the drone climb when you tilt it at idle, which is
+## the trade-off for keeping attitude alive.
+@export_range(0.0, 1.0, 0.001) var attitude_motor_idle: float = 0.10
+
 ## ── Per-axis aerodynamic angular drag ──────────────────────────────
 ##
 ## Godot's built-in `angular_damp` on RigidBody3D is *isotropic* — it
@@ -231,14 +247,24 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	# Raise collective to a floor when the yaw stick is deflected so
 	# the yaw differential has non-zero motor RPM to work with — see
-	# `yaw_motor_idle` doc for the rationale.  Only yaw gets an idle
-	# floor; pitch/roll authority is expected to scale with throttle
-	# (matches real-drone feel at low RPM).
+	# `yaw_motor_idle` doc for the rationale.
 	var yaw_abs: float = absf(yaw)
 	if yaw_motor_idle > 0.0 and yaw_abs > 0.0:
 		var _floor: float = yaw_motor_idle * yaw_abs * power_authority
 		if collective < _floor:
 			collective = _floor
+
+	# Same idea for pitch/roll: with T ∝ Ω², pure-differential thrust
+	# at zero collective is vanishingly weak (the "pushed" motor is
+	# squared low, the "pulled" motor clamps at zero).  Raising the
+	# floor when the pilot is tilting the stick keeps attitude alive
+	# without throttle — standard FPV ACRO feel.  See
+	# `attitude_motor_idle` doc.
+	var attitude_abs: float = maxf(absf(pitch), absf(roll))
+	if attitude_motor_idle > 0.0 and attitude_abs > 0.0:
+		var _floor_att: float = attitude_motor_idle * attitude_abs * power_authority
+		if collective < _floor_att:
+			collective = _floor_att
 
 	# ── Per-motor X-quad mix ────────────────────────────────────────
 	# motor_thr = clamp(
