@@ -6,7 +6,7 @@
 [ext_resource type="Script" uid="uid://bcp20udj0xh8e" path="res://Drones/Scripts/FlightControllers/QuadFlightController.gd" id="4_q7bwi"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
-size = Vector3(0.8, 0.639, 1.466)
+size = Vector3(0.8, 0.739, 1.466)
 
 [node name="DroneScene" type="RigidBody3D"]
 mass = 0.5
@@ -18,33 +18,31 @@ script = ExtResource("1_q7bwi")
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.317, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 shape = SubResource("BoxShape3D_b08s0")
 
 [node name="Thruster0" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, -1.1)
 max_force = 4.0
 ground_effect_max = 10.0
-ground_effect_gain = 30.0
-ground_effect_debug = true
+ground_effect_gain = 2.0
 
 [node name="Thruster1" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, -1.1)
 max_force = 4.0
 ground_effect_max = 10.0
-ground_effect_gain = 30.0
+ground_effect_gain = 2.0
 
 [node name="Thruster2" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, 1.1)
 max_force = 4.0
-ground_effect_max = 10.0
-ground_effect_gain = 30.0
+ground_effect_gain = 2.0
 
 [node name="Thruster3" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, 1.1)
 max_force = 4.0
 ground_effect_max = 10.0
-ground_effect_gain = 30.0
+ground_effect_gain = 2.0
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
