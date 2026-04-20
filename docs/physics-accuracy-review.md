@@ -205,14 +205,29 @@ remaining mass is treated as a point at the body origin, contributing
 nothing to rotational inertia).  Left off by default so existing
 scenes are unaffected.
 
-### 2.M Mixer saturation / desaturation strategy
+### 2.M Mixer saturation / desaturation strategy  ✅ **Done**
 **Impact:** high · **Effort:** medium
 
-Currently each motor is clamped to [0, 1] independently.  When one
-saturates, the commanded roll/pitch/yaw is silently truncated and the
-drone loses attitude authority.  Real flight stacks (Betaflight
-"airmode", PX4 mixer) use *priority-based desaturation*: scale
-collective down to preserve attitude authority.
+Three-pass priority-based desaturation now runs in
+[QuadFlightController.gd](../Drones/Scripts/FlightControllers/QuadFlightController.gd)
+`update_mix`:
+
+1. **Collective shift.**  Move every motor by the same amount to
+   absorb the most-saturated motor.  Attitude mix unchanged.
+2. **Yaw scale.**  If the attitude+yaw spread still exceeds the motor
+   range, bisect a `yaw_scale ∈ [0, 1]` that just fits.  Pilot loses
+   yaw authority, keeps roll/pitch.
+3. **Attitude scale.**  If even yaw=0 doesn't fit, scale attitude
+   down proportionally.  "Physically impossible" fallback.
+
+Triggers only at/near saturation — normal-flight commands pay the
+cost of one extra loop (pass 1 computes deltas, pass 3 writes
+thrust) but no scaling.  Priority order is attitude > yaw >
+collective, matching Betaflight airmode and PX4's multirotor mixer.
+The `yaw_motor_idle` and `attitude_motor_idle` floors are now
+largely redundant — desaturation provides collective automatically
+to keep the differential alive — but are retained for backwards
+compatibility and fine-tuning preference.
 
 ### 2.N IMU / gyro simulation (for stabilised controllers)
 **Impact:** low (PID realism) · **Effort:** medium
@@ -241,11 +256,12 @@ Grouped by "biggest physical improvement per line of code":
    supported.
 4. ~~**Quadratic + per-axis linear drag** (§2.H, §2.I)~~ ✅ — cruise
    flight now has a realistic $\sqrt{F/k}$ terminal-velocity curve.
-5. **Mixer desaturation** (§2.M) — prevents "loss of authority" bugs when
-   stabilisation layer lands on top. **← next**
-6. **Rotor gyroscopic torque** (§2.A) — cheap realism boost for racing feel.
-7. **Blade-flapping / H-force** (§2.B) — gives the drone a physical reason
-   to settle into forward flight.
+5. ~~**Mixer desaturation** (§2.M)~~ ✅ — attitude authority preserved
+   through saturation; ready for a PID layer on top.
+6. **Rotor gyroscopic torque** (§2.A) — cheap realism boost for racing
+   feel. **← next**
+7. **Blade-flapping / H-force** (§2.B) — gives the drone a physical
+   reason to settle into forward flight.
 
 Everything below that (VRS, battery sag, air density, wind field, IMU
 simulation) is refinement territory.

@@ -439,14 +439,58 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	var signed_thrust_sum: float = 0.0
 	var any_active := false
 
-	for t in thrusters:
+	# ── Desaturation pass 1: compute per-motor deltas (no clamp) ────
+	#
+	# Priority-based desaturation (review §2.M).  The naïve mixer
+	# clamps each motor to [0, 1] independently, which silently
+	# truncates the attitude differential whenever a motor saturates.
+	# A real flight stack (Betaflight airmode, PX4 mixer) preserves
+	# the *attitude* command and gives up *collective* first, yaw
+	# second, attitude last:
+	#
+	#   1. Shift collective up/down to absorb the most-over and
+	#      most-under motor — every motor moves by the same amount,
+	#      so the attitude/yaw split is unchanged.  This is free
+	#      (no information is lost) as long as the motor-delta
+	#      spread (max − min of attitude + yaw contributions across
+	#      motors) ≤ 1.0.
+	#   2. If the spread exceeds 1.0, scale **yaw** down just enough
+	#      to bring it back to ≤ 1.0.  The pilot loses yaw authority
+	#      at this extreme, but roll/pitch attitude stays honest.
+	#   3. If even yaw=0 leaves the spread > 1.0, scale attitude
+	#      proportionally.  This is the "drone physically cannot do
+	#      what you asked" fallback.
+	#
+	# Everything is a no-op in normal flight — triggers only at/near
+	# motor saturation.  The yaw/attitude idle floors above are still
+	# applied (they're additive to the physical model); desaturation
+	# just prevents the clamp from silently eating commands the pilot
+	# put in.
+	var n_motors: int = thrusters.size()
+	var att_deltas := PackedFloat32Array()
+	var yaw_deltas := PackedFloat32Array()
+	var spin_cache := PackedInt32Array()
+	att_deltas.resize(n_motors)
+	yaw_deltas.resize(n_motors)
+	spin_cache.resize(n_motors)
+
+	var min_d: float = INF
+	var max_d: float = -INF
+	var min_a: float = INF   # attitude-only extent, for fallback scaling
+	var max_a: float = -INF
+
+	for i in n_motors:
+		var t = thrusters[i]
 		if not (t is Node3D):
+			att_deltas[i] = 0.0
+			yaw_deltas[i] = 0.0
+			spin_cache[i] = 0
 			continue
 
 		var motor := t as Node3D
 		var spin: int = _get_spin_sign(motor, body)
+		spin_cache[i] = spin
 
-		# Position in body-local frame (handles nested motors).
 		var local_pos: Vector3
 		if body != null:
 			local_pos = body.to_local(motor.global_position)
@@ -456,13 +500,83 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		var roll_weight:  float = -local_pos.x / max_arm_x
 		var pitch_weight: float =  local_pos.z / max_arm_z
 
-		var motor_thr: float = clampf(
-			collective
-			+ roll_weight  * roll  * roll_authority
-			+ pitch_weight * pitch * pitch_authority
-			- float(spin) * yaw   * yaw_differential,
-			0.0, 1.0
-		)
+		var att: float = roll_weight * roll * roll_authority + pitch_weight * pitch * pitch_authority
+		var ydelta: float = -float(spin) * yaw * yaw_differential
+
+		att_deltas[i] = att
+		yaw_deltas[i] = ydelta
+
+		var combined: float = att + ydelta
+		if combined < min_d: min_d = combined
+		if combined > max_d: max_d = combined
+		if att < min_a: min_a = att
+		if att > max_a: max_a = att
+
+	# ── Desaturation pass 2: scale channels if spread > 1.0 ─────────
+	var spread: float = max_d - min_d
+	if spread > 1.0:
+		var att_spread: float = max_a - min_a
+		if att_spread >= 1.0:
+			# Step 3: attitude alone doesn't fit.  Scale it to exactly
+			# fill the motor range and drop yaw entirely.
+			var att_scale: float = 1.0 / att_spread
+			min_d = INF
+			max_d = -INF
+			for i in n_motors:
+				var d: float = att_deltas[i] * att_scale
+				att_deltas[i] = d
+				yaw_deltas[i] = 0.0
+				if d < min_d: min_d = d
+				if d > max_d: max_d = d
+		else:
+			# Step 2: attitude fits, yaw pushes it over.  Bisect
+			# yaw_scale so combined spread = 1.0.  The spread is
+			# piecewise-linear in yaw_scale so a dozen iterations
+			# give > 4 decimal digits of precision, well below
+			# anything a pilot could feel.
+			var lo: float = 0.0
+			var hi: float = 1.0
+			for _it in 12:
+				var mid: float = 0.5 * (lo + hi)
+				var _min: float = INF
+				var _max: float = -INF
+				for i in n_motors:
+					var d: float = att_deltas[i] + mid * yaw_deltas[i]
+					if d < _min: _min = d
+					if d > _max: _max = d
+				if (_max - _min) > 1.0:
+					hi = mid
+				else:
+					lo = mid
+			# Final yaw scale = lo (the largest value that still fits).
+			min_d = INF
+			max_d = -INF
+			for i in n_motors:
+				var d2: float = att_deltas[i] + lo * yaw_deltas[i]
+				att_deltas[i] = d2  # fold yaw into att_deltas for pass 3
+				if d2 < min_d: min_d = d2
+				if d2 > max_d: max_d = d2
+	else:
+		# Fits as-is.  Fold yaw into att_deltas for a uniform pass 3.
+		for i in n_motors:
+			att_deltas[i] = att_deltas[i] + yaw_deltas[i]
+
+	# Step 1: shift collective into the window that keeps every motor
+	# inside [0, 1].  After scaling, `spread ≤ 1.0` so col_lo ≤ col_hi
+	# and this always finds a valid collective.
+	var col_lo: float = -min_d
+	var col_hi: float = 1.0 - max_d
+	collective = clampf(collective, col_lo, col_hi)
+
+	# ── Desaturation pass 3: write final per-motor commands ─────────
+	for i in n_motors:
+		var t = thrusters[i]
+		if not (t is Node3D):
+			continue
+
+		# The `clampf` is a safety net — after desaturation the sum
+		# is already inside [0, 1] to floating-point tolerance.
+		var motor_thr: float = clampf(collective + att_deltas[i], 0.0, 1.0)
 
 		# All motors push straight UP in their own local frame; the
 		# body's tilt does the lateral-flight work (ACRO-mode style).
@@ -486,7 +600,7 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		var rpm_frac: float = motor_thr
 		if "throttle" in t:
 			rpm_frac = t.throttle
-		signed_thrust_sum += float(spin) * motor_max * rpm_frac * rpm_frac
+		signed_thrust_sum += float(spin_cache[i]) * motor_max * rpm_frac * rpm_frac
 
 		if motor_thr > 0.0:
 			any_active = true
