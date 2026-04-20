@@ -132,10 +132,12 @@ class_name FlightQuadController
 ##     τ_yaw = κR · Σ sᵢ · Tᵢ
 ##
 ## where sᵢ is each motor's spin sign and Tᵢ is its current thrust
-## in Newtons (`max_force · motor_throttle`).  Because Tᵢ already
-## encodes the yaw differential computed below, yaw authority scales
-## naturally with throttle — there is no separate "constant torque"
-## knob to tune.
+## in Newtons.  Thrust per motor is `max_force · rpm_frac²` because
+## `throttle` on the thruster is RPM fraction and real props give
+## $T \propto \Omega^2$ (see DroneThrusterScript's `throttle` doc).
+## Because Tᵢ already encodes the yaw differential computed below,
+## yaw authority scales naturally with throttle — there is no
+## separate "constant torque" knob to tune.
 ##
 ## Physical values for a 5-inch quad are roughly 0.01–0.03 m
 ## (κ ≈ 0.05–0.15, R ≈ 0.0635 m).  Game drones with unrealistic mass
@@ -293,18 +295,20 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		elif t.has_method("set_thrust"):
 			t.set_thrust(Vector3.UP * motor_thr)
 
-		# Tᵢ = max_force · throttle.  Read the thruster's *actual*
-		# (ramped) throttle for the reaction-torque sum so yaw
-		# authority lags RPM identically to the linear thrust.
-		# Falls back to the just-commanded `motor_thr` for exotic
-		# thrusters that don't expose a `throttle` property.
+		# Tᵢ = max_force · rpm_frac².  `throttle` on the thruster is
+		# RPM fraction (§5.1 — T ∝ Ω²), so square it here to get the
+		# real Newtons of thrust entering Σ sᵢ·Tᵢ.  Reading the
+		# *ramped* value keeps yaw authority lagged identically to the
+		# linear thrust.  Falls back to the just-commanded `motor_thr`
+		# for exotic thrusters that don't expose a `throttle`
+		# property — also squared, same reasoning.
 		var motor_max: float = 1.0
 		if t.has_method("get_max_force"):
 			motor_max = t.get_max_force()
-		var actual_thr: float = motor_thr
+		var rpm_frac: float = motor_thr
 		if "throttle" in t:
-			actual_thr = t.throttle
-		signed_thrust_sum += float(spin) * motor_max * actual_thr
+			rpm_frac = t.throttle
+		signed_thrust_sum += float(spin) * motor_max * rpm_frac * rpm_frac
 
 		if motor_thr > 0.0:
 			any_active = true

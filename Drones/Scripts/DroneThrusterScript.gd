@@ -5,16 +5,34 @@ class_name FlightThruster
 @export_node_path("RigidBody3D") var target_body_path: NodePath = NodePath("..")
 @export_range(0.0, 500.0, 0.1) var max_force: float = 45.0
 
-## Current *actual* throttle (∈ [0, 1]) — the value the thruster is
-## applying to the physics body this tick.  Drifts toward
-## `_commanded_throttle` via the PowerRamp low-pass filter (see
-## `spool_up_time` / `spool_down_time` below).
+## Current *actual* **RPM fraction** (∈ [0, 1]) — the normalised
+## motor shaft speed the thruster has spooled up to this tick.
+## Drifts toward `_commanded_throttle` via the PowerRamp low-pass
+## filter (see `spool_up_time` / `spool_down_time` below).
+##
+## ── RPM fraction, not thrust fraction ─────────────────────────────
+## Real brushless motors have thrust $T \propto \Omega^2$
+## (flight-dynamics-equations.md §5.1).  The value stored here
+## represents $\Omega / \Omega_\text{max}$ — the RPM command — and
+## the applied force is computed as:
+##
+##     F = max_force · throttle² · ground_multiplier
+##
+## So `throttle = 0.5` means 50 % RPM and **25 % thrust**, not 50 %
+## thrust.  This matters for hover-trim expectations: a drone with
+## TWR = 2 hovers at `throttle ≈ 0.707` (√0.5), not 0.5.
+##
+## The name "throttle" is kept because it's what pilots and RC sims
+## call the normalised motor command — the LPF above it matches the
+## ESC-to-rotor lag, so the variable physically *is* the RPM the
+## prop is currently spinning at, expressed as a fraction of max.
 ##
 ## Normally read-only from outside; controllers should call
 ## `set_thrust` / `set_thrust_directed` / `set_throttle` to update
 ## the command.  Direct assignment to `throttle = x` *bypasses the
-## ramp* and snaps both command and actual throttle to `x` — useful
-## for tests or hard resets, but not for normal flight control.
+## ramp* and snaps both command and actual RPM fraction to `x` —
+## useful for tests or hard resets, but not for normal flight
+## control.
 @export_range(0.0, 1.0, 0.001) var throttle: float = 0.0:
 	set(value):
 		throttle = clampf(value, 0.0, 1.0)
@@ -164,7 +182,11 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var ground_multiplier := _compute_ground_effect_multiplier()
-	var force := global_transform.basis * normalized_axis * max_force * throttle * ground_multiplier
+	# Thrust scales as Ω² — `throttle` is RPM fraction, so square it
+	# before multiplying by max_force (see `throttle` doc for why).
+	var rpm_frac: float = throttle
+	var thrust_frac: float = rpm_frac * rpm_frac
+	var force := global_transform.basis * normalized_axis * max_force * thrust_frac * ground_multiplier
 	var application_point := global_position - target_body.global_position
 	target_body.sleeping = false
 	target_body.apply_force(force, application_point)

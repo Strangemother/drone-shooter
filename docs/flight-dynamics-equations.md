@@ -159,12 +159,22 @@ For a hover, vertical thrust must exactly cancel gravity:
 
 $$F_\text{hover} = m \, g$$
 
-With $N$ thrusters each at throttle $\theta$:
+With $N$ thrusters each at RPM fraction $\theta$, and thrust
+scaling as $T = F_\text{max}\,\theta^2$ (real props: $T \propto \Omega^2$,
+see §5.1):
 
-$$N \, F_\text{max} \, \theta_\text{hover} = m \, g \implies \theta_\text{hover} = \frac{m \, g}{N \, F_\text{max}}$$
+$$N \, F_\text{max} \, \theta_\text{hover}^2 = m \, g \implies \theta_\text{hover} = \sqrt{\frac{m \, g}{N \, F_\text{max}}}$$
 
-At a target TWR of 2.0, hover occurs at $\theta_\text{hover} = 0.5$ (50%
-throttle).
+At a target TWR of 2.0, hover occurs at $\theta_\text{hover} = \sqrt{0.5} \approx 0.707$
+(≈ 71 % RPM command, which produces 50 % of max thrust).  At TWR 4,
+hover sits at $\sqrt{0.25} = 0.5$ (50 % RPM ≈ 25 % thrust).
+
+> **Linear-thrust historical note.** Earlier revisions of this
+> simulator treated `throttle` as thrust fraction directly, giving
+> $\theta_\text{hover} = mg / (NF_\text{max})$.  Existing scenes
+> tuned on that assumption will hover at a noticeably higher stick
+> position now.  Re-tune `max_force` if needed — the *physical*
+> hover thrust is unchanged; only the stick/RPM mapping moved.
 
 ### 2.3 Thrust-to-weight ratio
 
@@ -664,7 +674,7 @@ gimbal lock.
 |---|---|---|
 | Force to hover | $F = mg$ | `mass * 9.8` |
 | TWR | $\frac{NF_\text{max}}{mg}$ | `n_motors * max_force / (mass * 9.8)` |
-| Hover throttle | $\theta = \frac{mg}{NF_\text{max}}$ | `(mass * 9.8) / (n_motors * max_force)` |
+| Hover RPM fraction | $\theta = \sqrt{mg / (NF_\text{max})}$ | `sqrt((mass * 9.8) / (n_motors * max_force))` |
 | Terminal velocity | $v = F / (d \cdot m)$ | `total_thrust / (linear_damp * mass)` |
 | Steady yaw rate | $\omega = \tau / (d_\omega I)$ | `yaw_torque / (angular_damp * inertia)` |
 | Lever torque | $\tau = r \times F$ | `r.cross(F)` |

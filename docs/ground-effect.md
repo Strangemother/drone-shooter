@@ -85,21 +85,32 @@ Thruster (Node3D, FlightThruster script)
 The thruster's own `global_transform.basis` rotates the local
 `force_axis` into world space each `_physics_process` — so thrust
 follows the drone's current orientation for free, with no per-node
-maths. The ground-effect ray is a sibling of the mesh and rotates
-with the thruster node, meaning the ray always points "down from the
-motor's own perspective". For a level quad that's world-down; for a
-steeply banked drone it shortens horizontally. This is correct: a
-hovering quad banked 45° over a cliff edge *shouldn't* feel full
-ground effect, because the rotor is no longer parallel to the ground
-beneath it.
+maths.  The ground-effect ray is a child of the thruster node and
+rotates with it, so it always points "down from the motor's own
+perspective".  For a level quad that's world-down; for a steeply
+banked drone the ray tilts away from vertical and may eventually
+miss the ground entirely — at which point the cushion correctly
+disappears (no hit → multiplier 1).
 
-Measurement is the **vertical** (world-Y) offset from the thruster's
-`global_position` to the ray's collision point.  This matches $z$ in
-the Cheeseman–Bennett formula — defined as hub height above the
-ground plane, not slant distance along the ray.  Using vertical
-height makes the cushion strength independent of body tilt, so a
-rolled or pitched drone at the same *altitude* feels the same
-ground effect regardless of ray angle.
+**What the ray measures vs. what the formula uses.**  The ray's job
+is binary: "is there ground beneath this rotor, and where?"  The
+Cheeseman–Bennett formula uses $z$ = the rotor's *vertical* height
+above that ground plane, not the slant distance along the ray.  We
+therefore take the world-Y component of the offset from thruster to
+collision point:
+
+```gdscript
+var h: float = global_position.y - _ground_ray.get_collision_point().y
+```
+
+Using vertical height keeps the cushion strength invariant under
+body tilt: a drone hovering steady at 0.5 m feels the same lift
+augmentation whether it's level or rolled 20°.  The tilt does
+reduce effect *indirectly* — the ray's reach shrinks along the
+world-Y axis as it tilts, so a bank past some angle makes the ray
+miss the ground and the cushion cuts out — which is the physically
+correct failure mode (a sideways rotor has no downwash column to
+recirculate).
 
 ## Exports
 
