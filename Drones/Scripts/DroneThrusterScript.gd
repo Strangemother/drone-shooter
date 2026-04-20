@@ -176,10 +176,24 @@ func _physics_process(delta: float) -> void:
 ## is missing, or the ray isn't colliding.  Otherwise returns
 ## 1 / (1 − (R / 4h)²), clamped to [1, ground_effect_max].
 ##
-## `h` is measured from the thruster's global position to the ray
-## collision point (straight-line distance) — this is what a real
-## rotor "feels", independent of body tilt, since the air cushion
-## forms below the disc regardless of frame attitude.
+## `h` is the **vertical** height of the rotor disc above the ground
+## hit point — i.e. the world-Y component of the offset from thruster
+## to ray-collision point.  This matches the $z$ in
+## Cheeseman–Bennett (flight-dynamics-equations.md §8.1), which is
+## defined as hub height above the ground plane, not slant distance
+## along an angled ray.
+##
+## Using slant distance (the previous implementation) would
+## *under*-estimate the effect whenever the drone is tilted: a quad
+## rolled 30° would measure h · sec(30°) ≈ 1.15 · h_true and see a
+## weaker cushion than it physically should, making tilted landings
+## feel abrupt.  The vertical form is independent of body attitude,
+## which is the whole point of the ray-based measurement.
+##
+## If `h` comes out negative (hit point is above the thruster — e.g.
+## ray pointing the wrong way, or thruster inside a collider) we
+## treat it as zero and clamp to the max multiplier; the caller
+## probably has bigger problems than ground-effect accuracy.
 func _compute_ground_effect_multiplier() -> float:
 	if not ground_effect_enabled:
 		return 1.0
@@ -194,9 +208,14 @@ func _compute_ground_effect_multiplier() -> float:
 			])
 		return 1.0
 
-	var h: float = global_position.distance_to(_ground_ray.get_collision_point())
-	# Guard the singularity at h → 0 and stay well clear of it.
-	# Treat anything closer than a quarter-radius as the cap.
+	# Vertical height above the hit point.  Godot's world-up is +Y,
+	# so subtracting Y components gives signed altitude independent
+	# of body tilt or ray angle.
+	var h: float = global_position.y - _ground_ray.get_collision_point().y
+	# Guard the singularity of Cheeseman–Bennett at h → R/4 (where
+	# the denominator 1 − (R/4h)² hits zero).  Anything closer than
+	# that — including h ≤ 0, which is unphysical — is clamped to
+	# the max multiplier.
 	var h_min: float = ground_effect_radius * 0.25
 	if h < h_min:
 		if ground_effect_debug:

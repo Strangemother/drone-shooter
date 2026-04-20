@@ -93,10 +93,13 @@ hovering quad banked 45° over a cliff edge *shouldn't* feel full
 ground effect, because the rotor is no longer parallel to the ground
 beneath it.
 
-Measurement is straight-line distance from the thruster's
-`global_position` to the ray's collision point, which matches what a
-real rotor "feels" — air-cushion strength scales with the normal
-distance to the reflecting surface.
+Measurement is the **vertical** (world-Y) offset from the thruster's
+`global_position` to the ray's collision point.  This matches $z$ in
+the Cheeseman–Bennett formula — defined as hub height above the
+ground plane, not slant distance along the ray.  Using vertical
+height makes the cushion strength independent of body tilt, so a
+rolled or pitched drone at the same *altitude* feels the same
+ground effect regardless of ray angle.
 
 ## Exports
 
