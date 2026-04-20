@@ -320,10 +320,21 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	# ── Per-motor X-quad mix ────────────────────────────────────────
 	# motor_thr = clamp(
 	#   collective
-	#   − sign(x_local) · roll  · roll_authority     (right side down on +roll)
-	#   + sign(z_local) · pitch · pitch_authority    (nose down on +pitch)
-	#   − spin          · yaw   · yaw_differential,  (CW body on +yaw)
+	#   − (x_local / r_max_x) · roll  · roll_authority   (right side down on +roll)
+	#   + (z_local / r_max_z) · pitch · pitch_authority  (nose down on +pitch)
+	#   − spin                · yaw   · yaw_differential, (CW body on +yaw)
 	#   0, 1)
+	#
+	# Arm-length weighting (review §1.7):
+	#   Each motor's pitch/roll contribution is scaled by its moment
+	#   arm relative to the longest arm on that axis.  For a symmetric
+	#   X-quad every motor is at the same distance so all weights are
+	#   ±1 and behaviour is identical to the previous sign-only form.
+	#   For H-frames, stretched-X, deadcats, etc. this gives the
+	#   physically correct mix: a motor twice as far from the CoM
+	#   produces twice the torque for the same thrust delta, so it
+	#   should only receive half the throttle perturbation to deliver
+	#   the same attitude rate — weighting by x/r_max does exactly that.
 	#
 	# Sign derivation (cross-reference §10.2):
 	#   • roll  — matrix coeff = −sign(x); we use the same convention
@@ -335,6 +346,19 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	#             meaning CCW body rotation; our "yaw_right" is CW, so
 	#             the coefficient flips to −spin.  (Unchanged from the
 	#             prior yaw-only version of this controller.)
+	var max_arm_x: float = get_max_arm_length(body, thrusters, "x")
+	var max_arm_z: float = get_max_arm_length(body, thrusters, "z")
+	# Guard against degenerate / colinear layouts where every motor
+	# sits on one axis.  Falling back to 1.0 makes `x / r_max` behave
+	# like the raw body-local coordinate (i.e. still signed, just
+	# un-normalised), which is harmless — no motor contribution
+	# exceeds the authority knob because roll/pitch inputs are in
+	# [−1, 1] and the final motor throttle is clamped below.
+	if max_arm_x <= 0.0:
+		max_arm_x = 1.0
+	if max_arm_z <= 0.0:
+		max_arm_z = 1.0
+
 	var signed_thrust_sum: float = 0.0
 	var any_active := false
 
@@ -352,13 +376,13 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		else:
 			local_pos = motor.transform.origin
 
-		var roll_sign:  float = -signf(local_pos.x)
-		var pitch_sign: float = signf(local_pos.z)
+		var roll_weight:  float = -local_pos.x / max_arm_x
+		var pitch_weight: float =  local_pos.z / max_arm_z
 
 		var motor_thr: float = clampf(
 			collective
-			+ roll_sign  * roll  * roll_authority
-			+ pitch_sign * pitch * pitch_authority
+			+ roll_weight  * roll  * roll_authority
+			+ pitch_weight * pitch * pitch_authority
 			- float(spin) * yaw   * yaw_differential,
 			0.0, 1.0
 		)

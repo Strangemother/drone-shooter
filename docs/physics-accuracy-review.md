@@ -79,17 +79,23 @@ the drone to climb.  Real pilots expect pure yaw to hold altitude.
 Fix: bias the yaw differential *around* the current collective (add to
 CW, subtract from CCW) instead of lifting the floor.
 
-### 1.7 Mixing uses `signf(position)`, ignores magnitude
+### 1.7 Mixing uses `signf(position)`, ignores magnitude  ✅ **Done**
 **File:** [QuadFlightController.gd](../Drones/Scripts/FlightControllers/QuadFlightController.gd) — X-quad mix loop
 **Impact:** medium (only for non-square frames) · **Effort:** low
 
-`roll_sign = -signf(local_pos.x)` treats a motor 0.1 m out and one 0.3 m
-out identically.  This is fine for a symmetric X-quad but wrong for
-H-frames, stretched X, or deadcat layouts.  The physically correct form is
+Per-motor roll/pitch weights are now $-x_i / r_{\max,x}$ and
+$+z_i / r_{\max,z}$ using the existing `get_max_arm_length` helper,
+giving the physically correct form
 
-$$T_i = \text{col} + k_r \cdot \tfrac{x_i}{r_{\max}}\cdot\text{roll} + k_p \cdot \tfrac{z_i}{r_{\max}}\cdot\text{pitch} + k_y \cdot s_i \cdot \text{yaw}$$
+$$T_i = \text{col} + k_r \cdot \tfrac{x_i}{r_{\max,x}}\cdot\text{roll} + k_p \cdot \tfrac{z_i}{r_{\max,z}}\cdot\text{pitch} + k_y \cdot s_i \cdot \text{yaw}$$
 
-The helper `get_max_arm_length` already exists on the base class.
+For symmetric X-quads every weight is $\pm 1$, so behaviour is
+unchanged.  H-frames, stretched-X, and deadcat layouts now receive
+the correct per-motor throttle perturbations (a motor twice as far
+from the CoM gets half the delta for the same torque).  Degenerate
+colinear layouts (all motors on a single axis) fall back to an
+unnormalised signed coordinate; the final per-motor clamp keeps this
+safe.
 
 ---
 
@@ -211,9 +217,10 @@ Grouped by "biggest physical improvement per line of code":
 
 1. ~~**Ground-effect vertical height** (§1.3)~~ ✅
 2. ~~**RPM-vs-thrust clarification + `thrust = cmd²`** (§1.2, §2.D)~~ ✅
-3. **Arm-length-aware mixing** (§1.7) — opens the door to non-square frames. **← next**
-4. **Quadratic + per-axis linear drag** (§2.H, §2.I) — biggest felt change
-   for cruise flight.
+3. ~~**Arm-length-aware mixing** (§1.7)~~ ✅ — non-square frames now
+   supported.
+4. **Quadratic + per-axis linear drag** (§2.H, §2.I) — biggest felt
+   change for cruise flight. **← next**
 5. **Mixer desaturation** (§2.M) — prevents "loss of authority" bugs when
    stabilisation layer lands on top.
 6. **Rotor gyroscopic torque** (§2.A) — cheap realism boost for racing feel.
