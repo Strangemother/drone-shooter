@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://dhkbp32hmy3kw"]
+[gd_scene load_steps=7 format=3 uid="uid://dhkbp32hmy3kw"]
 
 [ext_resource type="Script" uid="uid://c3yiv13mript5" path="res://Drones/Scripts/DroneScript.gd" id="1_q7bwi"]
 [ext_resource type="PackedScene" uid="uid://qm8dunfkp5jr" path="res://addons/Targets/Models/Drone/drone_costum.fbx" id="2_85430"]
@@ -8,9 +8,12 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_b08s0"]
 size = Vector3(0.8, 0.739, 1.466)
 
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_exehk"]
+height = 0.2
+radius = 0.32
+
 [node name="DroneScene" type="RigidBody3D"]
 mass = 0.5
-gravity_scale = 2.0
 can_sleep = false
 script = ExtResource("1_q7bwi")
 
@@ -46,9 +49,12 @@ ground_effect_gain = 2.0
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
-pitch_authority = 0.01
-roll_authority = 0.018
+pitch_authority = 0.03
+roll_authority = 0.06
 prop_torque_coefficient = 0.1
+angular_drag_pitch = 0.05
+angular_drag_roll = 0.05
+angular_drag_yaw = 0.05
 yaw_tilt_angle = 0.4
 yaw_idle_thrust = 0.25
 yaw_throttle_attenuation = 0.7
@@ -63,3 +69,11 @@ yaw_right_action = &"twist_right"
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71, -0.03)
 current = true
+
+[node name="CollisionShape3D3" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
+shape = SubResource("CylinderShape3D_exehk")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
+shape = SubResource("CylinderShape3D_exehk")
