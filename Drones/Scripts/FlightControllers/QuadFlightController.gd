@@ -275,6 +275,65 @@ class_name FlightQuadController
 ## discs act like flat plates resisting yaw rotation.
 @export_range(0.0, 10.0, 0.001) var angular_drag_yaw: float = 0.20
 
+## ── Per-axis aerodynamic linear drag (quadratic) ───────────────────
+##
+## Godot's built-in `linear_damp` on RigidBody3D applies a **linear**
+## drag $\mathbf{F} = -d\,\mathbf{v}$.  Real aerodynamic drag is
+## **quadratic** in airspeed, $\mathbf{F} = -\tfrac{1}{2}\rho C_D A
+## |\mathbf{v}|\mathbf{v}$, which makes terminal velocity scale with
+## $\sqrt{F/k}$ rather than $F/d$ — doubling thrust only gives you
+## $\sqrt{2}$× the top speed, matching real drones.  It also makes
+## slow flight feel much freer (drag collapses quadratically near
+## hover) while keeping a firm speed ceiling at cruise.
+##
+## These exports apply an explicit quadratic drag force in the body's
+## local frame each physics tick:
+##
+##     F_drag_local.x = −k_lateral  · v_local.x · |v_local.x|
+##     F_drag_local.y = −k_vertical · v_local.y · |v_local.y|
+##     F_drag_local.z = −k_forward  · v_local.z · |v_local.z|
+##
+## where `v_local = body.basis⁻¹ · body.linear_velocity`.  Units are
+## kg/m (i.e. N per (m/s)²), absorbing the $\tfrac{1}{2}\rho C_D A$
+## constants into a single per-axis number.  Per-axis lets the drone
+## have a low-drag forward profile and a draggier side/belly profile
+## (review §2.I) — a real quad has noticeably more drag sliding
+## sideways than nose-first.
+##
+## Rough sizing: terminal speed along an axis under a horizontal
+## force $F$ (e.g. $mg$ at a 45° tilt) is $v_\text{term} = \sqrt{F/k}$.
+## A 0.5 kg quad with $k_\text{forward} = 0.05$ and 45° tilt has
+## $v_\text{term} \approx \sqrt{4.9/0.05} \approx 9.9$ m/s — a modest
+## cinelifter.  Racing quads with TWR 5–8 want lower k (0.02–0.03)
+## to reach 25+ m/s.
+##
+## Recommended workflow: **set the RigidBody3D's `linear_damp` to 0**
+## and tune these three values instead.  They stack additively if you
+## leave `linear_damp` non-zero, which is fine for quick tuning but
+## makes the $v^2$ term inexact at low speed.
+##
+## Defaults to non-zero values so drones have a finite terminal
+## velocity without the pilot having to opt in.  Set all three to 0
+## (and restore `linear_damp`) to disable this explicit drag path.
+
+## Forward/back drag (body-local Z axis).  Low relative to lateral —
+## a drone's nose-first profile is the slipperiest direction.  For a
+## 0.5 kg / 20 N-thrust quad, 0.05 kg/m gives a ~10 m/s terminal at
+## 45° tilt; 0.02 for racers, 0.10 for cinematic drones.
+@export_range(0.0, 10.0, 0.001) var linear_drag_forward: float = 0.05
+
+## Left/right drag (body-local X axis).  Typically 1.5–2× the
+## forward value because the drone's side profile (motors, arms,
+## camera pod) is much draggier than the nose profile.
+@export_range(0.0, 10.0, 0.001) var linear_drag_lateral: float = 0.10
+
+## Up/down drag (body-local Y axis).  Usually the *lowest* of the
+## three because the rotor discs are nearly transparent to axial
+## airflow (air flows through them rather than round them) and the
+## belly profile is still small versus the sides.  Mostly matters
+## for descent rate — falling belly-first through air.
+@export_range(0.0, 10.0, 0.001) var linear_drag_vertical: float = 0.03
+
 ## Per-thruster spin-sign overrides.
 ##   Key:   the Node3D thruster reference (assign at runtime or from
 ##          a ready function with `spin_sign_override[get_node(...)] = 1`).
@@ -459,6 +518,27 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 		# Rotate back to world frame for apply_torque, which takes
 		# a world-space torque vector.
 		body.apply_torque(body.basis * drag_local)
+
+	# ── Per-axis aerodynamic linear drag (quadratic) ────────────────
+	# F_drag_local = −k · v_local · |v_local|   (component-wise)
+	#
+	# v² rather than v means drag is negligible near hover and rises
+	# sharply at cruise — matching real aero behaviour.  Per-axis
+	# coefficients let the drone have a slippery nose and a draggy
+	# side/belly (review §2.I).  See the `linear_drag_forward` export
+	# doc for sizing guidance.
+	#
+	# Skipped when all three coefficients are zero so drones that
+	# rely on Godot's `linear_damp` (or have none) pay nothing for
+	# the transform math.
+	if body != null and (linear_drag_forward > 0.0 or linear_drag_lateral > 0.0 or linear_drag_vertical > 0.0):
+		var v_local: Vector3 = body.basis.transposed() * body.linear_velocity
+		var fd_local := Vector3(
+			-linear_drag_lateral  * v_local.x * absf(v_local.x),
+			-linear_drag_vertical * v_local.y * absf(v_local.y),
+			-linear_drag_forward  * v_local.z * absf(v_local.z),
+		)
+		body.apply_central_force(body.basis * fd_local)
 
 	# Silence all engines when player releases every input.
 	if not any_active and yaw_abs < 0.001:

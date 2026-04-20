@@ -149,20 +149,32 @@ sea-level $\rho$.
 Doc §8.2 notes a 5–15 % loss on close-spaced quads.  Cheapest model: a
 per-controller `fountain_loss` multiplier on collective.
 
-### 2.H Quadratic linear drag (terminal velocity)
+### 2.H Quadratic linear drag (terminal velocity)  ✅ **Done**
 **Impact:** high · **Effort:** medium
 
-Godot's `linear_damp` is linear in $v$, so terminal velocity scales as
-$T/d$ (doubling thrust doubles top speed).  Real drag $\propto v^2$, so
-top speed scales as $\sqrt{T/k}$.  Apply explicit
-$-\tfrac{1}{2}\rho C_D A |v| \mathbf{v}$ per tick and zero `linear_damp`.
+Implemented alongside §2.I as three per-axis exports on
+[QuadFlightController.gd](../Drones/Scripts/FlightControllers/QuadFlightController.gd):
+`linear_drag_forward`, `linear_drag_lateral`, `linear_drag_vertical`
+(units kg/m — the $\tfrac{1}{2}\rho C_D A$ constants folded into one
+number per axis).  Applied per tick as
 
-### 2.I Per-axis linear drag
+$$\mathbf{F}_\text{drag,local} = -\bigl(k_x\,v_x|v_x|,\ k_y\,v_y|v_y|,\ k_z\,v_z|v_z|\bigr)$$
+
+in the body-local frame, then rotated back to world space via
+`apply_central_force`.  Terminal velocity now scales as
+$\sqrt{F/k}$ rather than $F/d$.  Defaults are non-zero so drones
+have a finite top speed without the pilot opting in; set all three
+to 0 to revert to Godot's `linear_damp`.
+
+### 2.I Per-axis linear drag  ✅ **Done**
 **Impact:** medium · **Effort:** low (depends on 2.H)
 
-A quad has much higher drag laterally (frame + belly) than vertically
-(prop discs are nearly transparent to vertical airflow).  Isotropic
-damp erases this.  Requires explicit drag (2.H) to expose the axes.
+Covered by the same implementation as §2.H — the three coefficients
+are separate exports (`forward`, `lateral`, `vertical`) evaluated
+component-wise in the body-local frame.  A typical tune has
+$k_\text{lateral} \approx 2 \cdot k_\text{forward}$ and
+$k_\text{vertical} \approx 0.5 \cdot k_\text{forward}$ to match the
+slippery-nose / draggy-belly profile of a real quad.
 
 ### 2.J Wind / ambient air velocity field
 **Impact:** medium · **Effort:** medium
@@ -227,10 +239,10 @@ Grouped by "biggest physical improvement per line of code":
 2. ~~**RPM-vs-thrust clarification + `thrust = cmd²`** (§1.2, §2.D)~~ ✅
 3. ~~**Arm-length-aware mixing** (§1.7)~~ ✅ — non-square frames now
    supported.
-4. **Quadratic + per-axis linear drag** (§2.H, §2.I) — biggest felt
-   change for cruise flight. **← next**
+4. ~~**Quadratic + per-axis linear drag** (§2.H, §2.I)~~ ✅ — cruise
+   flight now has a realistic $\sqrt{F/k}$ terminal-velocity curve.
 5. **Mixer desaturation** (§2.M) — prevents "loss of authority" bugs when
-   stabilisation layer lands on top.
+   stabilisation layer lands on top. **← next**
 6. **Rotor gyroscopic torque** (§2.A) — cheap realism boost for racing feel.
 7. **Blade-flapping / H-force** (§2.B) — gives the drone a physical reason
    to settle into forward flight.
