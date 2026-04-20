@@ -177,13 +177,21 @@ A startup assertion — "sum of motor local positions is approximately
 zero w.r.t. CoM" — catches asymmetric builds before they produce
 mysterious drift at hover.
 
-### 2.L Inertia tensor override
+### 2.L Inertia tensor override  ✅ **Done**
 **Impact:** medium (affects attitude feel) · **Effort:** low
 
-Shape-derived inertia from a `BoxShape3D` *over*-estimates yaw inertia
-for a quad whose mass is concentrated at the motors.  Overriding
-`RigidBody3D.inertia` from `4 · m_motor · r²` is a 3-line fix that
-makes attitude rates match reality.
+Opt-in `use_motor_point_inertia` flag on
+[DroneScript.gd](../Drones/Scripts/DroneScript.gd).  When enabled,
+`_ready()` computes the body-local inertia tensor as four point
+masses at the thruster positions and writes the result directly to
+`RigidBody3D.inertia`, overriding the shape-derived default.
+
+$$m_\text{motor} = \frac{m \cdot f}{N},\quad I_{xx} = \sum m_\text{motor}(y_i^2 + z_i^2),\; I_{yy} = \sum m_\text{motor}(x_i^2 + z_i^2),\; I_{zz} = \sum m_\text{motor}(x_i^2 + y_i^2)$$
+
+where $f$ is the exposed `motor_mass_fraction` (default 0.75 — the
+remaining mass is treated as a point at the body origin, contributing
+nothing to rotational inertia).  Left off by default so existing
+scenes are unaffected.
 
 ### 2.M Mixer saturation / desaturation strategy
 **Impact:** high · **Effort:** medium
