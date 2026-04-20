@@ -26,38 +26,39 @@ shape = SubResource("BoxShape3D_b08s0")
 
 [node name="Thruster0" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, -1.1)
-max_force = 4.0
-ground_effect_max = 10.0
-ground_effect_gain = 2.0
+max_force = 5.0
+ground_effect_max = 1.52
+ground_effect_gain = 5.48
 
 [node name="Thruster1" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, -1.1)
-max_force = 4.0
-ground_effect_max = 10.0
-ground_effect_gain = 2.0
+max_force = 5.0
+ground_effect_max = 1.52
+ground_effect_gain = 5.48
 
 [node name="Thruster2" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.25, 1.1)
-max_force = 4.0
-ground_effect_gain = 2.0
+max_force = 5.0
+ground_effect_max = 1.52
+ground_effect_gain = 5.48
 
 [node name="Thruster3" parent="." instance=ExtResource("3_q7bwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.25, 1.1)
-max_force = 4.0
-ground_effect_max = 10.0
-ground_effect_gain = 2.0
+max_force = 5.0
+ground_effect_max = 1.52
+ground_effect_gain = 5.48
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
+roll_expo = 0.272
 pitch_authority = 0.03
 roll_authority = 0.06
 prop_torque_coefficient = 0.1
+yaw_motor_idle = 0.2
 angular_drag_pitch = 0.05
 angular_drag_roll = 0.05
 angular_drag_yaw = 0.05
 yaw_tilt_angle = 0.4
-yaw_idle_thrust = 0.25
-yaw_throttle_attenuation = 0.7
 throttle_up_action = &"throttle_analog"
 pitch_forward_action = &"pitch_forward"
 pitch_backward_action = &"pitch_backward"
