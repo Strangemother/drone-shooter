@@ -142,7 +142,15 @@ class_name FlightQuadController
 ## higher attitude rate at full stick; start small and raise until
 ## the drone tips at a pleasant speed without saturating motors on
 ## a gentle stick push.
-@export_range(0.0, 1.0, 0.001) var pitch_authority: float = 0.25
+##
+## The default (0.08) is tuned for a "typical" 5"–10" quad with arm
+## length ~0.15–0.3 m, mass ~0.5 kg, and angular drag at the default
+## 0.10 N·m/(rad/s).  Attitude rate scales **linearly with arm
+## length** (τ = ΔT · r), so a scene with much longer or shorter
+## arms will need this raised or lowered proportionally — a drone
+## with 1.0 m arms is ~5× more reactive than one with 0.2 m arms for
+## the same value here.
+@export_range(0.0, 1.0, 0.001) var pitch_authority: float = 0.08
 
 ## Peak roll throttle delta applied at full roll-stick deflection.
 ## Left motors (x < 0) raised, right motors (x > 0) lowered (or
@@ -151,8 +159,10 @@ class_name FlightQuadController
 ## This is the "roll" column of the X-quad mixing matrix.  Usually
 ## set equal to `pitch_authority` for symmetric feel; for drones
 ## with non-square frames (inertia different on each axis) the two
-## can be tuned independently.
-@export_range(0.0, 1.0, 0.001) var roll_authority: float = 0.25
+## can be tuned independently.  Roll inertia is typically lower than
+## pitch inertia on a longer-than-wide airframe, so the default is
+## left slightly above `pitch_authority` to give a tighter roll feel.
+@export_range(0.0, 1.0, 0.001) var roll_authority: float = 0.10
 
 ## Flip the roll response if the drone rolls the wrong way when you
 ## push the roll stick.  Defaults to the Godot convention (body +X =
@@ -210,11 +220,16 @@ class_name FlightQuadController
 ## working RPM so attitude authority persists at idle throttle —
 ## the classic "stick alive even with no throttle" FPV feel.
 ##
-## Set to 0 to revert to strict physical behaviour (zero throttle →
-## zero attitude authority).  Typical values 0.05–0.15; larger
-## values make the drone climb when you tilt it at idle, which is
-## the trade-off for keeping attitude alive.
-@export_range(0.0, 1.0, 0.001) var attitude_motor_idle: float = 0.10
+## **Throttle-punch caveat.**  Because thrust is quadratic in RPM,
+## holding a roll/pitch input while the pilot climbs from idle to
+## hover multiplies the attitude torque by (col_hover/col_idle)².
+## A large idle floor therefore produces a "snap" as the drone
+## transitions through mid-throttle.  The default (0.03) is small
+## enough to keep the stick feeling alive without a noticeable punch;
+## raise toward 0.10–0.15 for a more mechanical idle feel, or set to
+## 0 for strictly physical behaviour (stick goes dead at zero
+## throttle).
+@export_range(0.0, 1.0, 0.001) var attitude_motor_idle: float = 0.03
 
 ## ── Per-axis aerodynamic angular drag ──────────────────────────────
 ##
@@ -242,20 +257,23 @@ class_name FlightQuadController
 ## units-reference.md §5.3 inexact.
 ##
 ## A good starting point for the 0.5 kg / 10-inch-prop baseline:
-##   angular_drag_pitch = 0.05, angular_drag_roll = 0.05,
-##   angular_drag_yaw   = 0.25  (yaw ≈ 5× pitch/roll).
+##   angular_drag_pitch = 0.10, angular_drag_roll = 0.10,
+##   angular_drag_yaw   = 0.20  (yaw ≈ 2× pitch/roll).
 ##
-## Left at 0 by default so existing scenes are not silently changed.
-@export_range(0.0, 10.0, 0.001) var angular_drag_pitch: float = 0.0
+## Defaults to a modest non-zero value so the drone has a terminal
+## roll/pitch rate without the pilot having to dial in drag first.
+## Set all three to 0 (and tune the RigidBody3D's `angular_damp`
+## instead) to disable this explicit drag path.
+@export_range(0.0, 10.0, 0.001) var angular_drag_pitch: float = 0.10
 
 ## See `angular_drag_pitch`.  Roll drag around the drone's local Z
 ## axis (forward/back axis).  Usually similar to pitch drag.
-@export_range(0.0, 10.0, 0.001) var angular_drag_roll: float = 0.0
+@export_range(0.0, 10.0, 0.001) var angular_drag_roll: float = 0.10
 
 ## See `angular_drag_pitch`.  Yaw drag around the drone's local Y
-## (up) axis.  Typically 3–5× the pitch/roll values because the prop
+## (up) axis.  Typically 2–5× the pitch/roll values because the prop
 ## discs act like flat plates resisting yaw rotation.
-@export_range(0.0, 10.0, 0.001) var angular_drag_yaw: float = 0.0
+@export_range(0.0, 10.0, 0.001) var angular_drag_yaw: float = 0.20
 
 ## Per-thruster spin-sign overrides.
 ##   Key:   the Node3D thruster reference (assign at runtime or from
