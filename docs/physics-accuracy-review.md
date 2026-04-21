@@ -224,10 +224,21 @@ Triggers only at/near saturation — normal-flight commands pay the
 cost of one extra loop (pass 1 computes deltas, pass 3 writes
 thrust) but no scaling.  Priority order is attitude > yaw >
 collective, matching Betaflight airmode and PX4's multirotor mixer.
-The `yaw_motor_idle` and `attitude_motor_idle` floors are now
-largely redundant — desaturation provides collective automatically
-to keep the differential alive — but are retained for backwards
-compatibility and fine-tuning preference.
+
+**Relationship to the idle floors.**  Desaturation and
+`yaw_motor_idle` / `attitude_motor_idle` are *complementary*, not
+redundant.  Desaturation raises collective *just enough* to keep
+the most-negative motor at exactly 0 when the attitude mix would
+otherwise push it below — so at full roll stick you get motors
+like `{0, 0, 0.2, 0.2}`.  That's physically correct but, because of
+T ∝ Ω², the "0.2" motors only deliver 4 % of max thrust, giving a
+weak idle-throttle attitude response.  The idle floors raise
+collective to a *higher* fixed minimum on deflection, giving the
+differential more RPM to bite against.  Final collective is
+`max(player_collective, desat_floor, idle_floor)` — desaturation
+sets the physical minimum, the idle floor is an opt-in stronger
+floor for feel.  Set the idle floors to 0 only if you want the
+strict-physical behaviour ("stick almost dead at zero throttle").
 
 ### 2.N IMU / gyro simulation (for stabilised controllers)
 **Impact:** low (PID realism) · **Effort:** medium
