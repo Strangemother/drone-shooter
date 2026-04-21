@@ -1,8 +1,10 @@
-[gd_scene load_steps=9 format=3 uid="uid://bv136m3klv8qm"]
+[gd_scene load_steps=8 format=3 uid="uid://bv136m3klv8qm"]
 
-[ext_resource type="Script" uid="uid://d3y48mikvi83g" path="res://Drones/Scripts/PinnedTravel.gd" id="1_pt_script"]
+[ext_resource type="Script" path="res://Drones/Scripts/PinnedTravel.gd" id="1_pt_script"]
+[ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/ThrusterDroneScene.tscn" id="2_drone"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_4lcv8"]
+[sub_resource type="BoxMesh" id="BoxMesh_cube"]
+size = Vector3(2, 2, 2)
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_void"]
 sky_top_color = Color(0.02, 0.02, 0.05, 1)
@@ -40,22 +42,13 @@ emission_enabled = true
 emission = Color(0.2, 0.35, 0.6, 1)
 emission_energy_multiplier = 0.35
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_drone"]
-albedo_color = Color(0.95, 0.55, 0.15, 1)
-metallic = 0.3
-roughness = 0.4
-emission_enabled = true
-emission = Color(1, 0.4, 0.1, 1)
-emission_energy_multiplier = 0.8
-
-[sub_resource type="BoxMesh" id="BoxMesh_drone"]
-size = Vector3(0.6, 0.2, 1.2)
-
-[node name="PinnedTravel" type="Node3D" node_paths=PackedStringArray("multimesh_instance")]
+[node name="PinnedTravel" type="Node3D" node_paths=PackedStringArray("drone", "multimesh_instance", "hud_label")]
 script = ExtResource("1_pt_script")
-cube_mesh = SubResource("BoxMesh_4lcv8")
+grid_extent = 5
+grid_spacing = 20.0
+cube_mesh = SubResource("BoxMesh_cube")
+drone = NodePath("DroneScene")
 multimesh_instance = NodePath("CubeField")
-drone = NodePath("Drone")
 hud_label = NodePath("HUD/Label")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -70,17 +63,9 @@ shadow_enabled = true
 [node name="CubeField" type="MultiMeshInstance3D" parent="."]
 material_override = SubResource("StandardMaterial3D_cube")
 
-[node name="Drone" type="Node3D" parent="."]
-
-[node name="DroneMesh" type="MeshInstance3D" parent="Drone"]
-material_override = SubResource("StandardMaterial3D_drone")
-mesh = SubResource("BoxMesh_drone")
-
-[node name="Camera3D" type="Camera3D" parent="Drone"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 5)
-current = true
-fov = 70.0
-far = 2000.0
+[node name="DroneScene" parent="." instance=ExtResource("2_drone")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+gravity_scale = 2.0
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
@@ -106,6 +91,5 @@ grow_vertical = 0
 theme_override_colors/font_color = Color(0.8, 0.85, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
-text = "WASD: translate    Space/Shift: up/down
-Arrows: pitch / yaw    Q/E: roll
-The drone is pinned at (0,0,0); the cube lattice wraps around you."
+text = "Drone: ThrusterDroneScene (RigidBody3D + flight controller)
+Pinned at (0,0,0); the cube lattice wraps toroidally around you."

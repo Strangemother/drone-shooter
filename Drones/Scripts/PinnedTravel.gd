@@ -4,20 +4,24 @@ extends Node3D
 ## player appears to fly through an infinite lattice.
 ##
 ## Core idea:
-##   - The drone never translates. It only rotates.
-##   - A single `virtual_position` accumulates what the drone *would* have
-##     moved if it were free. This is the authoritative "where are we in the
-##     universe" value.
-##   - Each frame, every cube's displayed position is
+##   - The drone is a real RigidBody3D with its own flight controller. It
+##     integrates normally, accumulating linear/angular velocity from thrust
+##     and gravity just as it would in any other scene.
+##   - Each physics tick, AFTER the physics step, we read the drone's drift
+##     off origin, fold it into `virtual_position`, and snap the body back
+##     to (0,0,0) via PhysicsServer3D.body_set_state(BODY_STATE_TRANSFORM).
+##     Because a pure translation preserves linear_velocity and
+##     angular_velocity exactly, the integrator never sees a disturbance.
+##   - Every cube's displayed position is
 ##         base_grid_offset - virtual_position
-##     wrapped per-axis into [-half_span, +half_span) using fposmod.
-##     The wrap makes a cube that drifts off the back of the field reappear
-##     at the front, at the correct lattice spot, with zero allocation.
+##     wrapped per-axis into [-half_span, +half_span) via fposmod, so a
+##     finite pool of cubes appears as an infinite lattice.
 ##
-## All cubes share one MultiMeshInstance3D, so 100+ cubes cost one draw call.
+## All cubes share one MultiMeshInstance3D, so hundreds of cubes cost one
+## draw call.
 
 ## Cubes per axis. Total cube count = grid_extent ** 3.
-## 5 -> 125 cubes, 4 -> 64, 10 -> 1000. Defaults near the requested ~100.
+## 5 -> 125 cubes, 7 -> 343, 10 -> 1000.
 @export var grid_extent: int = 5
 
 ## World-space distance between adjacent cubes in the lattice.
@@ -26,19 +30,20 @@ extends Node3D
 ## Optional custom mesh for each cube. Falls back to a unit BoxMesh.
 @export var cube_mesh: Mesh
 
-## Max translation speed along drone-local axes (m/s).
-@export var move_speed: float = 40.0
+## The RigidBody3D drone to pin at origin. Assign in the inspector; typically
+## an instance of ThrusterDroneScene.tscn placed as a child of this node.
+@export var drone: RigidBody3D
 
-## Rotation speed for yaw / pitch / roll input (rad/s).
-@export var rotate_speed: float = 1.5
-
-## Assign these in the editor (or rely on the default NodePaths below).
+## MultiMeshInstance3D that will host the cube lattice. Its MultiMesh is
+## (re)created at runtime sized to grid_extent^3.
 @export var multimesh_instance: MultiMeshInstance3D
-@export var drone: Node3D
+
+## Optional label for a live HUD readout.
 @export var hud_label: Label
 
-## Accumulated virtual world position of the drone. The drone itself stays
-## pinned at origin; this value is what the rest of the universe is offset by.
+## Accumulated virtual world position of the drone. The drone's RigidBody3D
+## origin stays pinned at (0,0,0); this value is where it "would be" in the
+## unpinned universe.
 var virtual_position: Vector3 = Vector3.ZERO
 
 var _instance_count: int = 0
@@ -46,6 +51,7 @@ var _instance_count: int = 0
 
 func _ready() -> void:
 	_setup_multimesh()
+	_ensure_drone_at_origin()
 
 
 func _setup_multimesh() -> void:
@@ -59,51 +65,58 @@ func _setup_multimesh() -> void:
 	multimesh_instance.multimesh = mm
 
 
-func _physics_process(dt: float) -> void:
-	_handle_input(dt)
+func _ensure_drone_at_origin() -> void:
+	# Start the drone exactly at the pinned position so the first physics
+	# tick doesn't snap a large displacement. Any authored offset (e.g. a
+	# spawn height) is folded into virtual_position as the starting point.
+	if drone == null:
+		return
+	var xf := drone.global_transform
+	virtual_position = xf.origin
+	xf.origin = Vector3.ZERO
+	PhysicsServer3D.body_set_state(
+		drone.get_rid(),
+		PhysicsServer3D.BODY_STATE_TRANSFORM,
+		xf,
+	)
+	drone.reset_physics_interpolation()
+
+
+func _physics_process(_dt: float) -> void:
+	_pin_drone()
 	_update_cubes()
 	_update_hud()
 
 
-func _handle_input(dt: float) -> void:
-	# --- Rotation: keyboard arrows for yaw/pitch, Q/E for roll. ---
-	var yaw := 0.0
-	var pitch := 0.0
-	var roll := 0.0
-	if Input.is_key_pressed(KEY_LEFT):  yaw   += 1.0
-	if Input.is_key_pressed(KEY_RIGHT): yaw   -= 1.0
-	if Input.is_key_pressed(KEY_UP):    pitch += 1.0
-	if Input.is_key_pressed(KEY_DOWN):  pitch -= 1.0
-	if Input.is_key_pressed(KEY_Q):     roll  += 1.0
-	if Input.is_key_pressed(KEY_E):     roll  -= 1.0
-
-	# Yaw around world-up for stable flight feel; pitch/roll in local frame.
-	drone.rotate_y(yaw * rotate_speed * dt)
-	drone.rotate_object_local(Vector3.RIGHT,   pitch * rotate_speed * dt)
-	drone.rotate_object_local(Vector3.FORWARD, roll  * rotate_speed * dt)
-
-	# --- Translation intent: WASD + Space/Ctrl in drone-local axes. ---
-	var local_input := Vector3.ZERO
-	if Input.is_key_pressed(KEY_W):     local_input.z -= 1.0
-	if Input.is_key_pressed(KEY_S):     local_input.z += 1.0
-	if Input.is_key_pressed(KEY_A):     local_input.x -= 1.0
-	if Input.is_key_pressed(KEY_D):     local_input.x += 1.0
-	if Input.is_key_pressed(KEY_SPACE): local_input.y += 1.0
-	if Input.is_key_pressed(KEY_SHIFT): local_input.y -= 1.0
-
-	if local_input != Vector3.ZERO:
-		local_input = local_input.normalized()
-
-	# Transform local intent into world-space and accumulate.
-	# The drone DOES NOT move -- only virtual_position does.
-	var world_motion := drone.transform.basis * local_input
-	virtual_position += world_motion * move_speed * dt
+## Snap the drone back to origin each physics tick, folding its drift into
+## virtual_position. Rotation and velocities are preserved untouched.
+func _pin_drone() -> void:
+	if drone == null:
+		return
+	var xf := drone.global_transform
+	var drift := xf.origin
+	if drift == Vector3.ZERO:
+		return
+	virtual_position += drift
+	xf.origin = Vector3.ZERO
+	# Authoritative pose write: tells the physics server "this IS the body's
+	# pose, do not treat the jump as motion." linear_velocity and
+	# angular_velocity are deliberately left alone; pure translation is
+	# velocity-invariant so they are already correct in the new frame.
+	PhysicsServer3D.body_set_state(
+		drone.get_rid(),
+		PhysicsServer3D.BODY_STATE_TRANSFORM,
+		xf,
+	)
+	# Kill visual interpolation across the teleport so the mesh does not
+	# tween across the shift.
+	drone.reset_physics_interpolation()
 
 
 func _update_cubes() -> void:
 	# Toroidal wrap: each cube is placed at (base - virtual) mod span,
 	# centred around the drone. fposmod always returns a non-negative
-	# result so shifting by +half before and -half after recentres the
+	# result, so shifting by +half before and -half after recentres the
 	# wrap window to [-half, +half).
 	var mm := multimesh_instance.multimesh
 	var span := grid_spacing * float(grid_extent)
@@ -126,23 +139,10 @@ func _update_cubes() -> void:
 
 
 func _update_hud() -> void:
-	if hud_label == null:
+	if hud_label == null or drone == null:
 		return
+	var v := drone.linear_velocity
 	hud_label.text = "virtual_position: (%.1f, %.1f, %.1f)\nspeed: %.1f m/s" % [
 		virtual_position.x, virtual_position.y, virtual_position.z,
-		(drone.transform.basis * _last_motion_sample()).length(),
+		v.length(),
 	]
-
-
-func _last_motion_sample() -> Vector3:
-	# Approximate current commanded speed for HUD display only.
-	var v := Vector3.ZERO
-	if Input.is_key_pressed(KEY_W):     v.z -= 1.0
-	if Input.is_key_pressed(KEY_S):     v.z += 1.0
-	if Input.is_key_pressed(KEY_A):     v.x -= 1.0
-	if Input.is_key_pressed(KEY_D):     v.x += 1.0
-	if Input.is_key_pressed(KEY_SPACE): v.y += 1.0
-	if Input.is_key_pressed(KEY_SHIFT): v.y -= 1.0
-	if v != Vector3.ZERO:
-		v = v.normalized() * move_speed
-	return v
