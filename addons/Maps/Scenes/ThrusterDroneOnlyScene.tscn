@@ -396,3 +396,4 @@ mesh = SubResource("SphereMesh_0ldo7")
 [node name="DroneScene" parent="." instance=ExtResource("10_16q18")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 4, -28)
 gravity_scale = 2.0
+use_motor_point_inertia = true

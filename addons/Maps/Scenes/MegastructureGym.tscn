@@ -1,37 +1,38 @@
-[gd_scene load_steps=14 format=3 uid="uid://dmegastruct01ab"]
+[gd_scene load_steps=15 format=3 uid="uid://b7845bef8bboa"]
 
 [ext_resource type="Script" uid="uid://caec4srps6nbs" path="res://addons/Maps/Scripts/template_map_scene.gd" id="1_tmpl"]
 [ext_resource type="Material" uid="uid://bu7tj6ka05jwg" path="res://addons/Arts/Materials/StructureMaterial1.tres" id="2_mat1"]
 [ext_resource type="Material" uid="uid://cgn7do4y8jc0o" path="res://addons/Arts/Materials/StructureMaterial2.tres" id="3_mat2"]
+[ext_resource type="Texture2D" uid="uid://bymur13rpsnx6" path="res://addons/Maps/Textures/kenney_prototype_textures/dark/texture_09.png" id="4_knbs0"]
 [ext_resource type="Script" uid="uid://bnwoh7ph255km" path="res://addons/Maps/Scripts/SpawnerManagerScript.gd" id="5_spawn"]
 [ext_resource type="PackedScene" uid="uid://bwggrf7sbmkcv" path="res://addons/PlayerCharacter/Scenes/PlayerCharacterScene.tscn" id="8_player"]
 [ext_resource type="Script" uid="uid://bsqhrlcr7q1ou" path="res://addons/Maps/Scripts/waypoint_path_curve.gd" id="9_wp"]
 [ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/ThrusterDroneScene.tscn" id="10_drone"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_inhh7"]
+albedo_color = Color(1, 0.684715, 0.654832, 1)
+albedo_texture = ExtResource("4_knbs0")
+uv1_triplanar = true
+
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_smog"]
-sky_top_color = Color(0.18, 0.12, 0.22, 1)
-sky_horizon_color = Color(0.55, 0.32, 0.28, 1)
 sky_curve = 0.18
-ground_bottom_color = Color(0.08, 0.05, 0.06, 1)
-ground_horizon_color = Color(0.42, 0.25, 0.22, 1)
 sun_angle_max = 50.0
 sun_curve = 0.2
 
 [sub_resource type="Sky" id="Sky_smog"]
 sky_material = SubResource("ProceduralSkyMaterial_smog")
+radiance_size = 2
 
 [sub_resource type="Environment" id="Environment_smog"]
 background_mode = 2
+background_energy_multiplier = 1.2
 sky = SubResource("Sky_smog")
-ambient_light_source = 3
-ambient_light_color = Color(0.42, 0.3, 0.34, 1)
-ambient_light_energy = 0.4
-tonemap_mode = 2
+tonemap_mode = 1
 tonemap_exposure = 1.3
+tonemap_white = 0.45
 glow_enabled = true
 glow_intensity = 0.6
 glow_bloom = 0.15
-fog_enabled = true
 fog_light_color = Color(0.6, 0.4, 0.38, 1)
 fog_light_energy = 0.9
 fog_sun_scatter = 0.35
@@ -102,14 +103,14 @@ operation = 2
 size = Vector3(20, 10, 60)
 
 [node name="DockBayWest2" type="CSGBox3D" parent="Structures/MainTower"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95, 310, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -49, 291, 0)
 operation = 2
-size = Vector3(20, 10, 60)
+size = Vector3(112, 48, 60)
 
 [node name="SkyTunnel" type="CSGCylinder3D" parent="Structures/MainTower"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 200, 0)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 1, 200, 0)
 operation = 2
-radius = 12.0
+radius = 41.0
 height = 220.0
 
 [node name="RoofTrim" type="CSGBox3D" parent="Structures"]
@@ -331,7 +332,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 460, 326, 80)
 material_override = ExtResource("2_mat1")
 use_collision = true
 collision_mask = 10
-radius = 0.5
 height = 60.0
 
 [node name="BuildingWest" type="CSGBox3D" parent="Structures"]
@@ -340,6 +340,13 @@ material_override = ExtResource("2_mat1")
 use_collision = true
 collision_mask = 10
 size = Vector3(100, 580, 100)
+
+[node name="BuildingUnderCap2" type="CSGBox3D" parent="Structures"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.5, 139, -1)
+material_override = ExtResource("3_mat2")
+use_collision = true
+collision_mask = 10
+size = Vector3(53, 4, 60)
 
 [node name="BuildingWestCap" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -420, 272, -60)
@@ -353,7 +360,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -420, 304, -60)
 material_override = ExtResource("2_mat1")
 use_collision = true
 collision_mask = 10
-radius = 0.5
 height = 60.0
 
 [node name="SkywayRing1" type="CSGTorus3D" parent="Structures"]
@@ -411,8 +417,8 @@ collision_mask = 10
 size = Vector3(340, 2, 6)
 
 [node name="FogDeckLow" type="CSGBox3D" parent="Structures"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -470, 0)
-material_override = ExtResource("2_mat1")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -464, 0)
+material_override = SubResource("StandardMaterial3D_inhh7")
 use_collision = true
 collision_mask = 10
 size = Vector3(2000, 10, 2000)
@@ -424,8 +430,8 @@ environment = SubResource("Environment_smog")
 camera_attributes = SubResource("CameraAttributesPractical_mega")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="Environment"]
-transform = Transform3D(-0.866024, -0.433016, 0.250001, 0, 0.499998, 0.866026, -0.500003, 0.749999, -0.43301, 0, 400, 0)
-light_color = Color(1, 0.78, 0.62, 1)
+transform = Transform3D(-0.866024, -0.433016, 0.250001, 0, 0.499998, 0.866027, -0.500003, 0.75, -0.43301, 551, 534, 0)
+light_color = Color(1, 0.946965, 0.745643, 1)
 light_energy = 1.2
 light_bake_mode = 1
 shadow_enabled = true
@@ -485,3 +491,4 @@ mesh = SubResource("SphereMesh_wp")
 [node name="DroneScene" parent="." instance=ExtResource("10_drone")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 258, 140)
 gravity_scale = 2.0
+use_motor_point_inertia = true

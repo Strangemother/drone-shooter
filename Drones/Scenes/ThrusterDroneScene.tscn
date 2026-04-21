@@ -46,11 +46,14 @@ ground_effect_gain = 5.48
 
 [node name="FlightController" type="Node" parent="."]
 script = ExtResource("4_q7bwi")
-roll_authority = 0.06
+throttle_expo = 0.196
+pitch_authority = 0.04
+roll_authority = 0.03
 yaw_motor_idle = 0.2
-angular_drag_pitch = 0.05
-angular_drag_roll = 0.05
-angular_drag_yaw = 0.05
+attitude_motor_idle = 0.23
+angular_drag_pitch = 0.03
+angular_drag_roll = 0.03
+angular_drag_yaw = 0.03
 yaw_tilt_angle = 0.4
 throttle_up_action = &"throttle_analog"
 pitch_forward_action = &"pitch_forward"

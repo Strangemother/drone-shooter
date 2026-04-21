@@ -1,15 +1,14 @@
-[gd_scene load_steps=9 format=3 uid="uid://dpinnedtravel01"]
+[gd_scene load_steps=9 format=3 uid="uid://bv136m3klv8qm"]
 
-[ext_resource type="Script" path="res://Drones/Scripts/PinnedTravel.gd" id="1_pt_script"]
+[ext_resource type="Script" uid="uid://d3y48mikvi83g" path="res://Drones/Scripts/PinnedTravel.gd" id="1_pt_script"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_4lcv8"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_void"]
 sky_top_color = Color(0.02, 0.02, 0.05, 1)
 sky_horizon_color = Color(0.08, 0.06, 0.12, 1)
-sky_curve = 0.15
 ground_bottom_color = Color(0.01, 0.01, 0.02, 1)
 ground_horizon_color = Color(0.05, 0.04, 0.08, 1)
-sun_angle_max = 30.0
-sun_curve = 0.15
 
 [sub_resource type="Sky" id="Sky_void"]
 sky_material = SubResource("ProceduralSkyMaterial_void")
@@ -32,9 +31,6 @@ fog_density = 0.004
 fog_aerial_perspective = 0.6
 fog_sky_affect = 0.2
 
-[sub_resource type="BoxMesh" id="BoxMesh_cube"]
-size = Vector3(2, 2, 2)
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cube"]
 albedo_color = Color(0.55, 0.7, 0.95, 1)
 metallic = 0.2
@@ -44,9 +40,6 @@ emission_enabled = true
 emission = Color(0.2, 0.35, 0.6, 1)
 emission_energy_multiplier = 0.35
 
-[sub_resource type="BoxMesh" id="BoxMesh_drone"]
-size = Vector3(0.6, 0.2, 1.2)
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_drone"]
 albedo_color = Color(0.95, 0.55, 0.15, 1)
 metallic = 0.3
@@ -55,12 +48,12 @@ emission_enabled = true
 emission = Color(1, 0.4, 0.1, 1)
 emission_energy_multiplier = 0.8
 
-[node name="PinnedTravel" type="Node3D"]
+[sub_resource type="BoxMesh" id="BoxMesh_drone"]
+size = Vector3(0.6, 0.2, 1.2)
+
+[node name="PinnedTravel" type="Node3D" node_paths=PackedStringArray("multimesh_instance")]
 script = ExtResource("1_pt_script")
-grid_extent = 5
-grid_spacing = 20.0
-move_speed = 40.0
-rotate_speed = 1.5
+cube_mesh = SubResource("BoxMesh_4lcv8")
 multimesh_instance = NodePath("CubeField")
 drone = NodePath("Drone")
 hud_label = NodePath("HUD/Label")
@@ -80,14 +73,13 @@ material_override = SubResource("StandardMaterial3D_cube")
 [node name="Drone" type="Node3D" parent="."]
 
 [node name="DroneMesh" type="MeshInstance3D" parent="Drone"]
-mesh = SubResource("BoxMesh_drone")
 material_override = SubResource("StandardMaterial3D_drone")
+mesh = SubResource("BoxMesh_drone")
 
 [node name="Camera3D" type="Camera3D" parent="Drone"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 5)
 current = true
 fov = 70.0
-near = 0.05
 far = 2000.0
 
 [node name="HUD" type="CanvasLayer" parent="."]
@@ -103,9 +95,8 @@ theme_override_constants/outline_size = 4
 text = "virtual_position: (0.0, 0.0, 0.0)"
 
 [node name="Instructions" type="Label" parent="HUD"]
-anchor_left = 0.0
+anchors_preset = 2
 anchor_top = 1.0
-anchor_right = 0.0
 anchor_bottom = 1.0
 offset_left = 16.0
 offset_top = -96.0
