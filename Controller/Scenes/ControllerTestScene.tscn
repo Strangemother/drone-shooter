@@ -23,6 +23,9 @@ offset_top = 68.0
 offset_right = 133.0
 offset_bottom = 169.0
 script = ExtResource("2_g1mof")
+axis_x_index = 3
+axis_y_index = 2
+invert_y = true
 metadata/_edit_group_ = true
 
 [node name="Background" type="ColorRect" parent="JoystickLeft"]
@@ -47,6 +50,7 @@ offset_top = 67.0
 offset_right = 306.0
 offset_bottom = 168.0
 script = ExtResource("2_g1mof")
+invert_y = true
 
 [node name="Background" type="ColorRect" parent="JoystickRight"]
 offset_right = 100.0
