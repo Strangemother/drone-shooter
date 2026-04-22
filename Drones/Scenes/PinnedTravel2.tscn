@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=3 uid="uid://bv136m3klv8qm"]
 
-[ext_resource type="Script" path="res://Drones/Scripts/PinnedTravel.gd" id="1_pt_script"]
+[ext_resource type="Script" uid="uid://d3y48mikvi83g" path="res://Drones/Scripts/PinnedTravel.gd" id="1_pt_script"]
 [ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/ThrusterDroneScene.tscn" id="2_drone"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_cube"]
@@ -44,8 +44,6 @@ emission_energy_multiplier = 0.35
 
 [node name="PinnedTravel" type="Node3D" node_paths=PackedStringArray("drone", "multimesh_instance", "hud_label")]
 script = ExtResource("1_pt_script")
-grid_extent = 5
-grid_spacing = 20.0
 cube_mesh = SubResource("BoxMesh_cube")
 drone = NodePath("DroneScene")
 multimesh_instance = NodePath("CubeField")
@@ -64,8 +62,8 @@ shadow_enabled = true
 material_override = SubResource("StandardMaterial3D_cube")
 
 [node name="DroneScene" parent="." instance=ExtResource("2_drone")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 gravity_scale = 2.0
+use_motor_point_inertia = true
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

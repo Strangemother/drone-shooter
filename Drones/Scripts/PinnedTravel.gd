@@ -22,10 +22,10 @@ extends Node3D
 
 ## Cubes per axis. Total cube count = grid_extent ** 3.
 ## 5 -> 125 cubes, 7 -> 343, 10 -> 1000.
-@export var grid_extent: int = 5
+@export var grid_extent: int = 7
 
 ## World-space distance between adjacent cubes in the lattice.
-@export var grid_spacing: float = 20.0
+@export var grid_spacing: float = 80.0
 
 ## Optional custom mesh for each cube. Falls back to a unit BoxMesh.
 @export var cube_mesh: Mesh
