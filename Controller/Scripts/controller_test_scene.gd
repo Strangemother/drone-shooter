@@ -12,7 +12,7 @@ extends Node2D
 @onready var _name_field: RichTextLabel = $ControllerName
 
 ## The joystick visual — attach joystick.gd to the Control node in the editor.
-@onready var _joystick: Control = $Control
+@onready var _joystick: Control = $Joystick
 
 ## Device index of the active controller, or -1 when none is connected.
 var _active_device: int = -1
@@ -58,7 +58,7 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 
 func _connect_controller(device: int) -> void:
 	_active_device = device
-	_name_field.text = Input.get_joy_name(device)
+	_name_field.text = "NAME: %s" % Input.get_joy_name(device)
 	print("Controller connected [%d]: %s" % [device, Input.get_joy_name(device)])
 
 

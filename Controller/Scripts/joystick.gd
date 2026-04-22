@@ -10,8 +10,8 @@ extends Control
 ## Inputs with a magnitude below this threshold are snapped to zero.
 const DEAD_ZONE := 0.1
 
-@onready var _background: ColorRect = $ColorRect
-@onready var _dot: ColorRect = $ColorRect/ColorRect2
+@onready var _background: ColorRect = $Background
+@onready var _dot: ColorRect = $Indicator
 
 
 ## Move the dot to reflect the given axis values in [-1, 1] range.
