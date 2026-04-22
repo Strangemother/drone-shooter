@@ -60,10 +60,24 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 
 func _connect_controller(device: int) -> void:
 	_active_device = device
+	_name_field.text = "NAME: %s" % _resolve_joy_name(device)
+	print("Controller connected [%d]: %s" % [device, _resolve_joy_name(device)])
+
+
+## Returns the best available name for a joypad device.
+## Godot 4 leaves get_joy_name() empty for XInput controllers on Windows,
+## so we derive a label from get_joy_info()'s xinput_index instead.
+func _resolve_joy_name(device: int) -> String:
+	var builtin := Input.get_joy_name(device)
+	if builtin != "":
+		return builtin
+
 	var info := Input.get_joy_info(device)
-	var _name: String = info.get("raw_name", Input.get_joy_name(device))
-	_name_field.text = "NAME: %s" % _name
-	print("Controller connected [%d]: %s" % [device, _name])
+	if info.has("xinput_index"):
+		return "XInput Controller %d" % info["xinput_index"]
+
+	# Last resort — at least show something useful.
+	return "Controller %d" % device
 
 
 func _disconnect_controller() -> void:
