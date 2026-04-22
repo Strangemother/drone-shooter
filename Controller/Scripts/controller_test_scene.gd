@@ -12,7 +12,8 @@ extends Node2D
 @onready var _name_field: RichTextLabel = $ControllerName
 
 ## The joystick visual — attach joystick.gd to the Control node in the editor.
-@onready var _joystick: Control = $Joystick
+@onready var _joystickLeft: Control = $JoystickLeft
+@onready var _joystickRight: Control = $JoystickRight
 
 ## Device index of the active controller, or -1 when none is connected.
 var _active_device: int = -1
@@ -38,8 +39,14 @@ func _process(_delta: float) -> void:
 	var axis_x := Input.get_joy_axis(_active_device, JOY_AXIS_LEFT_X)
 	var axis_y := Input.get_joy_axis(_active_device, JOY_AXIS_LEFT_Y)
 
-	if _joystick and _joystick.has_method("set_axes"):
-		_joystick.set_axes(axis_x, axis_y)
+	if _joystickLeft and _joystickLeft.has_method("set_axes"):
+		_joystickLeft.set_axes(axis_x, axis_y)
+	
+	var axis2_x = Input.get_joy_axis(_active_device, JOY_AXIS_RIGHT_X)
+	var axis2_y = Input.get_joy_axis(_active_device, JOY_AXIS_RIGHT_Y)
+
+	if _joystickRight and _joystickRight.has_method("set_axes"):
+		_joystickRight.set_axes(axis2_x, axis2_y)
 
 
 # --- Signal handlers ---------------------------------------------------------
@@ -86,5 +93,7 @@ func _disconnect_controller() -> void:
 	_name_field.text = "No Controller"
 
 	# Return the stick visual to centre.
-	if _joystick and _joystick.has_method("set_axes"):
-		_joystick.set_axes(0.0, 0.0)
+	if _joystickLeft:
+		_joystickLeft.set_axes(0.0, 0.0)
+	if _joystickRight:
+		_joystickRight.set_axes(0.0, 0.0)

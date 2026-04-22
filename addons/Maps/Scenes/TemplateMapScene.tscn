@@ -32,7 +32,6 @@ rings = 8
 
 [node name="TemplateMap" type="Node3D"]
 script = ExtResource("1_k1n2p")
-drone_path = NodePath("DroneScene")
 
 [node name="Structures" type="Node3D" parent="."]
 

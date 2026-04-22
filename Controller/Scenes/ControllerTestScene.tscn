@@ -15,7 +15,7 @@ text = "Controller Name"
 scroll_active = false
 autowrap_mode = 0
 
-[node name="Joystick" type="Control" parent="."]
+[node name="JoystickLeft" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
 offset_left = 32.0
@@ -23,14 +23,38 @@ offset_top = 68.0
 offset_right = 133.0
 offset_bottom = 169.0
 script = ExtResource("2_g1mof")
+metadata/_edit_group_ = true
 
-[node name="Background" type="ColorRect" parent="Joystick"]
+[node name="Background" type="ColorRect" parent="JoystickLeft"]
 offset_right = 100.0
 offset_bottom = 100.0
 size_flags_horizontal = 0
 color = Color(0.128906, 0.0733642, 0.0408227, 1)
 
-[node name="Indicator" type="ColorRect" parent="Joystick"]
+[node name="Indicator" type="ColorRect" parent="JoystickLeft"]
+layout_mode = 0
+offset_right = 19.0
+offset_bottom = 19.0
+pivot_offset = Vector2(10, 10)
+size_flags_horizontal = 0
+color = Color(1, 0.568627, 0.317647, 1)
+
+[node name="JoystickRight" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 205.0
+offset_top = 67.0
+offset_right = 306.0
+offset_bottom = 168.0
+script = ExtResource("2_g1mof")
+
+[node name="Background" type="ColorRect" parent="JoystickRight"]
+offset_right = 100.0
+offset_bottom = 100.0
+size_flags_horizontal = 0
+color = Color(0.128906, 0.0733642, 0.0408227, 1)
+
+[node name="Indicator" type="ColorRect" parent="JoystickRight"]
 layout_mode = 0
 offset_right = 19.0
 offset_bottom = 19.0
