@@ -35,18 +35,11 @@ func _process(_delta: float) -> void:
 	if _active_device == -1:
 		return
 
-	# Read the left stick axes each frame and forward them to the visual.
-	var axis_x := Input.get_joy_axis(_active_device, JOY_AXIS_LEFT_X)
-	var axis_y := Input.get_joy_axis(_active_device, JOY_AXIS_LEFT_Y)
-
-	if _joystickLeft and _joystickLeft.has_method("set_axes"):
-		_joystickLeft.set_axes(axis_x, axis_y)
-	
-	var axis2_x = Input.get_joy_axis(_active_device, JOY_AXIS_RIGHT_X)
-	var axis2_y = Input.get_joy_axis(_active_device, JOY_AXIS_RIGHT_Y)
-
-	if _joystickRight and _joystickRight.has_method("set_axes"):
-		_joystickRight.set_axes(axis2_x, axis2_y)
+	# Each joystick visual knows which axes it monitors (set in the inspector).
+	if _joystickLeft:
+		_joystickLeft.poll(_active_device)
+	if _joystickRight:
+		_joystickRight.poll(_active_device)
 
 
 # --- Signal handlers ---------------------------------------------------------
@@ -106,8 +99,8 @@ func _disconnect_controller() -> void:
 	_active_device = -1
 	_name_field.text = "No Controller"
 
-	# Return the stick visual to centre.
+	# Return both stick visuals to centre.
 	if _joystickLeft:
-		_joystickLeft.set_axes(0.0, 0.0)
+		_joystickLeft.poll(-1)
 	if _joystickRight:
-		_joystickRight.set_axes(0.0, 0.0)
+		_joystickRight.poll(-1)
