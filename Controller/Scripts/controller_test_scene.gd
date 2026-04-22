@@ -59,9 +59,10 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 func _connect_controller(device: int) -> void:
 	_active_device = device
 	var info := Input.get_joy_info(device)
-	var name := info.get("raw_name", Input.get_joy_name(device))
-	_name_field.text = "NAME: %s" % name
-	print("Controller connected [%d]: %s" % [device, name])
+	print(info)
+	var _name: String = info.get("raw_name", Input.get_joy_name(device))
+	_name_field.text = "NAME: %s" % _name
+	print("Controller connected [%d]: %s" % [device, _name])
 
 
 func _disconnect_controller() -> void:
