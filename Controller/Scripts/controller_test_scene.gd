@@ -65,8 +65,19 @@ func _connect_controller(device: int) -> void:
 
 
 ## Returns the best available name for a joypad device.
-## Godot 4 leaves get_joy_name() empty for XInput controllers on Windows,
-## so we derive a label from get_joy_info()'s xinput_index instead.
+##
+## Godot 4.4 on Windows uses the native XInput driver, which does not expose
+## a human-readable product name — Input.get_joy_name() is empty and
+## Input.get_joy_info() only returns {"xinput_index": N}. XInput itself
+## (the Windows API) does not provide a per-device product string.
+##
+## We do the best we can:
+##   1. Use get_joy_name() if the platform/driver supplied one.
+##   2. If get_joy_info() reports xinput_index, we know it is an XInput
+##      (Xbox-compatible) pad — label it accordingly.
+##   3. If Godot recognises the device via its SDL mapping database, mark it
+##      as a known gamepad.
+##   4. Otherwise fall back to a generic "Controller N" label.
 func _resolve_joy_name(device: int) -> String:
 	var builtin := Input.get_joy_name(device)
 	if builtin != "":
@@ -74,9 +85,12 @@ func _resolve_joy_name(device: int) -> String:
 
 	var info := Input.get_joy_info(device)
 	if info.has("xinput_index"):
-		return "XInput Controller %d" % info["xinput_index"]
+		# XInput-compatible = Xbox 360 / Xbox One / Xbox Series / XInput clone.
+		return "Xbox-compatible Controller (XInput #%d)" % info["xinput_index"]
 
-	# Last resort — at least show something useful.
+	if Input.is_joy_known(device):
+		return "Known Gamepad %d" % device
+
 	return "Controller %d" % device
 
 
