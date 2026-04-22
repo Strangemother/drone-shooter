@@ -47,8 +47,10 @@ func _process(_delta: float) -> void:
 func _on_joy_connection_changed(device: int, connected: bool) -> void:
 	if connected:
 		# Track the first controller that connects; ignore additional ones for now.
+		# Defer by one frame — Godot fires this signal before the device name is
+		# fully registered, so get_joy_name() returns "" if called immediately.
 		if _active_device == -1:
-			_connect_controller(device)
+			call_deferred("_connect_controller", device)
 	else:
 		if device == _active_device:
 			_disconnect_controller()
@@ -59,7 +61,6 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 func _connect_controller(device: int) -> void:
 	_active_device = device
 	var info := Input.get_joy_info(device)
-	print(info)
 	var _name: String = info.get("raw_name", Input.get_joy_name(device))
 	_name_field.text = "NAME: %s" % _name
 	print("Controller connected [%d]: %s" % [device, _name])
