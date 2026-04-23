@@ -141,12 +141,12 @@ func _on_right_stick(value: Vector2) -> void:
 ## Default: right trigger → throttle_up (no throttle_down contribution —
 ## triggers are unipolar so releasing the trigger reads as 0 throttle).
 ## Override in a subclass to add left-trigger behaviour (e.g. braking).
-func _on_trigger_changed(left: float, _right_val: float) -> void:
+func _on_trigger_changed(_left: float, _right_val: float) -> void:
 	# Right trigger drives throttle up; releasing = 0 (no down input).
 	_controller_axes[throttle_up_action]   = _right_val
 	_controller_axes[throttle_down_action] = 0.0
-	# Left trigger is unused in the base mapping.  Subclasses may override.
-	_ = left
+	# Left trigger is unused in the base mapping.  Subclasses may override
+	# by connecting to MappedController.trigger_changed directly.
 
 
 ## Decomposes a signed axis value v ∈ [−1, 1] into positive and
