@@ -22,6 +22,11 @@ extends Node
 
 class_name FlightControllerBase
 
+# Cache of action StringName → analog strength [0, 1] populated by
+# MappedController stick signals.  Read by _action_strength before
+# falling back to Input.get_action_strength.
+var _controller_axes: Dictionary = {}
+
 
 # ── input action bindings ─────────────────────────────────────────
 
@@ -37,6 +42,19 @@ class_name FlightControllerBase
 @export var roll_right_action: StringName = &"moveRight"
 @export var yaw_left_action: StringName = &""
 @export var yaw_right_action: StringName = &""
+
+## Optional MappedController whose stick signals drive `_action_strength`.
+## Assign in the inspector or from code.  When set, controller stick values
+## take priority over keyboard for any action name they cover.  When null,
+## only Godot's InputMap / keyboard is used.
+##
+## Connection and disconnection are handled automatically by the setter;
+## no _ready() call is required in this class or any subclass.
+@export var controller: MappedController:
+	set(value):
+		_disconnect_controller()
+		controller = value
+		_connect_controller()
 
 
 # ── virtual overrides ─────────────────────────────────────────────
@@ -54,6 +72,69 @@ func update_mix(_body: RigidBody3D, _thrusters: Array[Node]) -> void:
 ## state (e.g. PID integrals, velocity filters).
 func reset_state() -> void:
 	pass
+
+
+# ── controller signal integration ────────────────────────────────
+
+## Connects MappedController stick signals.  Called automatically by
+## the `controller` property setter — do not call manually.
+func _connect_controller() -> void:
+	if controller == null:
+		return
+	if not controller.left_stick_changed.is_connected(_on_left_stick):
+		controller.left_stick_changed.connect(_on_left_stick)
+	if not controller.right_stick_changed.is_connected(_on_right_stick):
+		controller.right_stick_changed.connect(_on_right_stick)
+
+
+## Disconnects signals from the previously assigned controller and
+## clears the axis cache so stale values do not persist.
+func _disconnect_controller() -> void:
+	if controller == null:
+		return
+	if controller.left_stick_changed.is_connected(_on_left_stick):
+		controller.left_stick_changed.disconnect(_on_left_stick)
+	if controller.right_stick_changed.is_connected(_on_right_stick):
+		controller.right_stick_changed.disconnect(_on_right_stick)
+	_controller_axes.clear()
+
+
+## Left stick handler — default layout Mode 2 (most common FPV):
+##   X axis → yaw   (left = yaw_left,   right = yaw_right)
+##   Y axis → throttle (up = throttle_up, down = throttle_down)
+##
+## MappedController signal convention: y positive = stick pushed DOWN.
+## Negating Y means "stick up" produces a positive throttle_up value.
+##
+## Override in a subclass to remap axes to different action pairs
+## (e.g. Mode 1, or to drive pitch/roll from the left stick instead).
+func _on_left_stick(value: Vector2) -> void:
+	_write_axis_pair(yaw_left_action,      yaw_right_action,   value.x)
+	_write_axis_pair(throttle_down_action, throttle_up_action, -value.y)
+
+
+## Right stick handler — default layout Mode 2:
+##   X axis → roll  (left = roll_left,   right = roll_right)
+##   Y axis → pitch (up = pitch_forward, down = pitch_backward)
+func _on_right_stick(value: Vector2) -> void:
+	_write_axis_pair(roll_left_action,      roll_right_action,    value.x)
+	_write_axis_pair(pitch_backward_action, pitch_forward_action, -value.y)
+
+
+## Decomposes a signed axis value v ∈ [−1, 1] into positive and
+## negative action strengths and writes them into the axis cache.
+##
+##   v > 0 → pos_action = v,    neg_action = 0
+##   v < 0 → neg_action = |v|,  pos_action = 0
+##
+## This mirrors how `get_axis_value` consumes a positive/negative pair
+## via _action_strength — the decomposition is the exact inverse:
+##
+##   get_axis_value(neg, pos) = _action_strength(pos) − _action_strength(neg)
+##                            = v (when v > 0)  or  v (when v < 0).
+func _write_axis_pair(neg_action: StringName, pos_action: StringName, v: float) -> void:
+	_controller_axes[pos_action] = maxf(v, 0.0)
+	_controller_axes[neg_action] = maxf(-v, 0.0)
 
 
 # ── shared helpers available to every controller ──────────────────
@@ -122,6 +203,11 @@ func apply_expo(x: float, amount: float) -> float:
 func _action_strength(action: StringName) -> float:
 	if action == &"":
 		return 0.0
+	# Controller signal values take priority over keyboard/InputMap.
+	# Only actions that have received at least one stick signal are cached;
+	# actions not covered by any stick axis fall through to Input normally.
+	if _controller_axes.has(action):
+		return _controller_axes[action]
 	if not InputMap.has_action(action):
 		return 0.0
 	print('Get Action: ', action)
