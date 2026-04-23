@@ -27,6 +27,15 @@ const DEAD_ZONE := 0.1
 @onready var _dot: ColorRect = $Indicator
 
 
+## Assign axis indices and inversion flags at runtime, typically from a
+## ControllerMapping resource selected in the controller test scene.
+func apply_axes(x_index: int, y_index: int, inv_x: bool = false, inv_y: bool = false) -> void:
+	axis_x_index = x_index
+	axis_y_index = y_index
+	invert_x = inv_x
+	invert_y = inv_y
+
+
 ## Poll the configured axes from the given device and update the indicator.
 ## Pass a device of -1 to centre the indicator (no controller connected).
 func poll(device: int) -> void:

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ControllerMapping" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Controller/Scripts/controller_mapping.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "RadioMaster TX16"
+name_match = "TX16"
+; NOTE: These axis numbers are reasonable defaults for a TX16 over USB HID
+; in Mode 2. Replace them with the values you confirmed working in the
+; scene's inspector. Common layout:
+;   axis 0 = aileron  (right stick X)
+;   axis 1 = elevator (right stick Y)
+;   axis 2 = throttle (left stick Y)
+;   axis 3 = rudder   (left stick X)
+left_axis_x = 3
+left_axis_y = 2
+left_invert_x = false
+left_invert_y = false
+right_axis_x = 0
+right_axis_y = 1
+right_invert_x = false
+right_invert_y = false
