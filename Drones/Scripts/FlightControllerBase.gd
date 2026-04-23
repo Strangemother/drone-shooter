@@ -54,7 +54,11 @@ var _controller_axes: Dictionary = {}
 	set(value):
 		_disconnect_controller()
 		controller = value
-		_connect_controller()
+		# Only connect immediately if the node is already in the tree.
+		# If the setter fires during _init() (before _ready), the NodePath
+		# resolves to null; _ready() will call _connect_controller() again.
+		if is_inside_tree():
+			_connect_controller()
 
 
 # ── virtual overrides ─────────────────────────────────────────────
@@ -74,12 +78,19 @@ func reset_state() -> void:
 	pass
 
 
+func _ready() -> void:
+	# The @export setter may have fired during _init() before the node was
+	# in the tree, resolving `controller` to null even when a value was
+	# saved in the .tscn.  Re-run connection here when the node is ready.
+	_connect_controller()
+
+
 # ── controller signal integration ────────────────────────────────
 
 ## Connects MappedController stick signals.  Called automatically by
 ## the `controller` property setter — do not call manually.
 func _connect_controller() -> void:
-	if controller == null:
+	if not is_instance_valid(controller):
 		return
 	if not controller.left_stick_changed.is_connected(_on_left_stick):
 		controller.left_stick_changed.connect(_on_left_stick)
@@ -87,12 +98,14 @@ func _connect_controller() -> void:
 		controller.right_stick_changed.connect(_on_right_stick)
 	if not controller.trigger_changed.is_connected(_on_trigger_changed):
 		controller.trigger_changed.connect(_on_trigger_changed)
+	if not controller.controller_disconnected.is_connected(_on_gamepad_disconnected):
+		controller.controller_disconnected.connect(_on_gamepad_disconnected)
 
 
 ## Disconnects signals from the previously assigned controller and
 ## clears the axis cache so stale values do not persist.
 func _disconnect_controller() -> void:
-	if controller == null:
+	if not is_instance_valid(controller):
 		return
 	if controller.left_stick_changed.is_connected(_on_left_stick):
 		controller.left_stick_changed.disconnect(_on_left_stick)
@@ -100,6 +113,8 @@ func _disconnect_controller() -> void:
 		controller.right_stick_changed.disconnect(_on_right_stick)
 	if controller.trigger_changed.is_connected(_on_trigger_changed):
 		controller.trigger_changed.disconnect(_on_trigger_changed)
+	if controller.controller_disconnected.is_connected(_on_gamepad_disconnected):
+		controller.controller_disconnected.disconnect(_on_gamepad_disconnected)
 	_controller_axes.clear()
 
 
@@ -147,6 +162,12 @@ func _on_trigger_changed(_left: float, _right_val: float) -> void:
 	_controller_axes[throttle_down_action] = 0.0
 	# Left trigger is unused in the base mapping.  Subclasses may override
 	# by connecting to MappedController.trigger_changed directly.
+
+
+## Clears the axis cache when the physical gamepad disconnects so the
+## drone does not receive stale stick/trigger values.
+func _on_gamepad_disconnected(_device: int) -> void:
+	_controller_axes.clear()
 
 
 ## Decomposes a signed axis value v ∈ [−1, 1] into positive and
