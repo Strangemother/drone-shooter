@@ -35,3 +35,21 @@ extends Resource
 @export var right_axis_y: int = JOY_AXIS_RIGHT_Y
 @export var right_invert_x: bool = false
 @export var right_invert_y: bool = false
+
+# --- Triggers ----------------------------------------------------------------
+
+@export_group("Triggers")
+
+## Axis index for the left trigger, or -1 to disable.
+## On Xbox/PlayStation controllers this is JOY_AXIS_TRIGGER_LEFT (4).
+@export var trigger_left_axis: int = -1
+
+## Axis index for the right trigger, or -1 to disable.
+## On Xbox/PlayStation controllers this is JOY_AXIS_TRIGGER_RIGHT (5).
+@export var trigger_right_axis: int = -1
+
+## When true, the right trigger drives throttle and the left stick Y axis
+## is treated as yaw-only (its throttle write is suppressed in
+## FlightControllerBase).  Leave false for controllers that use the
+## left stick for throttle as normal.
+@export var use_trigger_for_throttle: bool = false

@@ -85,6 +85,8 @@ func _connect_controller() -> void:
 		controller.left_stick_changed.connect(_on_left_stick)
 	if not controller.right_stick_changed.is_connected(_on_right_stick):
 		controller.right_stick_changed.connect(_on_right_stick)
+	if not controller.trigger_changed.is_connected(_on_trigger_changed):
+		controller.trigger_changed.connect(_on_trigger_changed)
 
 
 ## Disconnects signals from the previously assigned controller and
@@ -96,6 +98,8 @@ func _disconnect_controller() -> void:
 		controller.left_stick_changed.disconnect(_on_left_stick)
 	if controller.right_stick_changed.is_connected(_on_right_stick):
 		controller.right_stick_changed.disconnect(_on_right_stick)
+	if controller.trigger_changed.is_connected(_on_trigger_changed):
+		controller.trigger_changed.disconnect(_on_trigger_changed)
 	_controller_axes.clear()
 
 
@@ -106,11 +110,20 @@ func _disconnect_controller() -> void:
 ## MappedController signal convention: y positive = stick pushed DOWN.
 ## Negating Y means "stick up" produces a positive throttle_up value.
 ##
+## When the active mapping has `use_trigger_for_throttle = true` the Y axis
+## is skipped here — the right trigger drives throttle instead via
+## _on_trigger_changed.  Only yaw is written from this stick in that case.
+##
 ## Override in a subclass to remap axes to different action pairs
 ## (e.g. Mode 1, or to drive pitch/roll from the left stick instead).
 func _on_left_stick(value: Vector2) -> void:
-	_write_axis_pair(yaw_left_action,      yaw_right_action,   value.x)
-	_write_axis_pair(throttle_down_action, throttle_up_action, -value.y)
+	_write_axis_pair(yaw_left_action, yaw_right_action, value.x)
+	# Suppress throttle from left stick Y when the mapping uses trigger throttle.
+	var use_trigger := (controller != null
+		and controller.current_mapping != null
+		and controller.current_mapping.use_trigger_for_throttle)
+	if not use_trigger:
+		_write_axis_pair(throttle_down_action, throttle_up_action, -value.y)
 
 
 ## Right stick handler — default layout Mode 2:
@@ -119,6 +132,21 @@ func _on_left_stick(value: Vector2) -> void:
 func _on_right_stick(value: Vector2) -> void:
 	_write_axis_pair(roll_left_action,      roll_right_action,    value.x)
 	_write_axis_pair(pitch_backward_action, pitch_forward_action, -value.y)
+
+
+## Trigger handler.  Both trigger values arrive together in [0, 1].
+## Only fires when the MappedController's mapping has trigger axes configured
+## (i.e. trigger_right_axis or trigger_left_axis ≥ 0 in the mapping resource).
+##
+## Default: right trigger → throttle_up (no throttle_down contribution —
+## triggers are unipolar so releasing the trigger reads as 0 throttle).
+## Override in a subclass to add left-trigger behaviour (e.g. braking).
+func _on_trigger_changed(left: float, _right_val: float) -> void:
+	# Right trigger drives throttle up; releasing = 0 (no down input).
+	_controller_axes[throttle_up_action]   = _right_val
+	_controller_axes[throttle_down_action] = 0.0
+	# Left trigger is unused in the base mapping.  Subclasses may override.
+	_ = left
 
 
 ## Decomposes a signed axis value v ∈ [−1, 1] into positive and

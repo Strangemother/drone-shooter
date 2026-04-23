@@ -14,3 +14,6 @@ right_axis_x = 2
 right_axis_y = 3
 right_invert_x = false
 right_invert_y = false
+trigger_left_axis = 4
+trigger_right_axis = 5
+use_trigger_for_throttle = true

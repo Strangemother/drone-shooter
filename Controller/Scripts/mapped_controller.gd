@@ -42,6 +42,12 @@ signal button_pressed(button: int)
 ## Emitted on any joypad button release for the active device.
 signal button_released(button: int)
 
+## Emitted when either trigger axis changes (values in [0, 1], 0 = released).
+## Only fires when the active mapping has trigger_left_axis / trigger_right_axis
+## set to a non-negative value.  Both values are always sent together so
+## subscribers can handle them in a single callback.
+signal trigger_changed(left: float, right: float)
+
 # --- Exports -----------------------------------------------------------------
 
 ## Mappings offered for selection. Leave empty to auto-load from mappings_dir.
@@ -67,6 +73,8 @@ var current_mapping: ControllerMapping
 
 var _left_stick := Vector2.ZERO
 var _right_stick := Vector2.ZERO
+var _trigger_left: float = 0.0
+var _trigger_right: float = 0.0
 
 
 func _ready() -> void:
@@ -94,6 +102,7 @@ func _process(_delta: float) -> void:
 		current_mapping.right_invert_x, current_mapping.right_invert_y,
 		false,
 	)
+	_update_triggers()
 
 
 func _input(event: InputEvent) -> void:
@@ -115,6 +124,16 @@ func get_left_stick() -> Vector2:
 ## Snapshot of the current right-stick vector.
 func get_right_stick() -> Vector2:
 	return _right_stick
+
+
+## Snapshot of the current right trigger value [0, 1].
+func get_trigger_right() -> float:
+	return _trigger_right
+
+
+## Snapshot of the current left trigger value [0, 1].
+func get_trigger_left() -> float:
+	return _trigger_left
 
 
 ## Apply the mapping at the given index in `mappings`. No-op if out of range.
@@ -182,6 +201,28 @@ func _update_stick(axis_x: int, axis_y: int, inv_x: bool, inv_y: bool, is_left: 
 		_emit_left(v)
 	else:
 		_emit_right(v)
+
+
+# --- Trigger polling --------------------------------------------------------
+
+## Polls both trigger axes from the active mapping.  Triggers return [0, 1]
+## in Godot — resting at 0, fully pressed at 1.  Only emits when either
+## value changes by more than change_epsilon.
+func _update_triggers() -> void:
+	if current_mapping == null:
+		return
+	var l := 0.0
+	var r := 0.0
+	if current_mapping.trigger_left_axis >= 0:
+		l = Input.get_joy_axis(active_device, current_mapping.trigger_left_axis)
+	if current_mapping.trigger_right_axis >= 0:
+		r = Input.get_joy_axis(active_device, current_mapping.trigger_right_axis)
+	# Only emit when something has meaningfully changed.
+	if absf(l - _trigger_left) < change_epsilon and absf(r - _trigger_right) < change_epsilon:
+		return
+	_trigger_left = l
+	_trigger_right = r
+	trigger_changed.emit(_trigger_left, _trigger_right)
 
 
 func _emit_left(v: Vector2) -> void:
