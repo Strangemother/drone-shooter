@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://d0mappedctrl001"]
+
+[ext_resource type="Script" path="res://Controller/Scripts/mapped_controller.gd" id="1"]
+
+[node name="MappedController" type="Node"]
+script = ExtResource("1")
