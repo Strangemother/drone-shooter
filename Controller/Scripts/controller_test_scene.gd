@@ -13,8 +13,12 @@ extends Node2D
 ##     runtime if it isn't present in the scene.
 
 ## ControllerMapping resources offered in the picker. Drop .tres files here
-## in the inspector — the picker UI is built from this list.
+## in the inspector — the picker UI is built from this list. If left empty,
+## every ControllerMapping in `mappings_dir` is loaded automatically.
 @export var mappings: Array[ControllerMapping] = []
+
+## Directory scanned for ControllerMapping .tres files when `mappings` is empty.
+@export_dir var mappings_dir: String = "res://Controller/Mappings"
 
 @onready var _name_field: RichTextLabel = $ControllerName
 @onready var _joystick_left: Control = $JoystickLeft
@@ -33,6 +37,8 @@ var _active_device: int = -1
 func _ready() -> void:
 	_name_field.text = "No Controller"
 	_ensure_picker()
+	if mappings.is_empty():
+		_auto_load_mappings()
 	_populate_picker()
 
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
@@ -125,6 +131,33 @@ func _find_mapping_index_for(joy_name: String) -> int:
 		if lowered.find(m.name_match.to_lower()) != -1:
 			return i
 	return -1
+
+
+## Load every ControllerMapping resource found directly inside mappings_dir.
+## Used when the inspector-exposed `mappings` array is left empty.
+func _auto_load_mappings() -> void:
+	var dir := DirAccess.open(mappings_dir)
+	if dir == null:
+		push_warning("ControllerMapping dir not found: %s" % mappings_dir)
+		return
+
+	dir.list_dir_begin()
+	var file := dir.get_next()
+	while file != "":
+		# Handle both uncompiled (.tres) and compiled-export (.res) forms.
+		if not dir.current_is_dir() and (file.ends_with(".tres") or file.ends_with(".res")):
+			var path := "%s/%s" % [mappings_dir, file]
+			var res := load(path)
+			if res is ControllerMapping:
+				mappings.append(res)
+			else:
+				push_warning("Skipping non-ControllerMapping resource: %s" % path)
+		file = dir.get_next()
+	dir.list_dir_end()
+
+	# Stable order so the picker is predictable across runs.
+	mappings.sort_custom(func(a, b): return a.display_name < b.display_name)
+	print("Auto-loaded %d controller mapping(s) from %s" % [mappings.size(), mappings_dir])
 
 
 # --- Picker UI ---------------------------------------------------------------
