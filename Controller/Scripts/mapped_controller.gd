@@ -143,10 +143,11 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 
 
 func _connect_controller(device: int) -> void:
+	
 	active_device = device
 	var joy_name := _resolve_joy_name(device)
 	controller_connected.emit(device, joy_name)
-
+	print('Connected controller: ', joy_name)
 	var auto_index := _find_mapping_index_for(joy_name)
 	if auto_index != -1:
 		_apply_mapping(mappings[auto_index])

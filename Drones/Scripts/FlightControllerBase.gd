@@ -124,4 +124,5 @@ func _action_strength(action: StringName) -> float:
 		return 0.0
 	if not InputMap.has_action(action):
 		return 0.0
+	print('Get Action: ', action)
 	return Input.get_action_strength(action)
