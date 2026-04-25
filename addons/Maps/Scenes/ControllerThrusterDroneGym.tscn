@@ -1,12 +1,12 @@
-[gd_scene load_steps=13 format=3 uid="uid://c7huwoh06g3gj"]
+[gd_scene load_steps=13 format=3 uid="uid://bqg3hur1gv4dh"]
 
-[ext_resource type="Script" uid="uid://caec4srps6nbs" path="res://addons/Maps/Scripts/template_map_scene.gd" id="1_ecgx1"]
-[ext_resource type="Material" uid="uid://bu7tj6ka05jwg" path="res://addons/Arts/Materials/StructureMaterial1.tres" id="2_5tfl8"]
-[ext_resource type="Material" uid="uid://cgn7do4y8jc0o" path="res://addons/Arts/Materials/StructureMaterial2.tres" id="3_id4o3"]
-[ext_resource type="Script" uid="uid://bnwoh7ph255km" path="res://addons/Maps/Scripts/SpawnerManagerScript.gd" id="5_7p0qe"]
-[ext_resource type="PackedScene" uid="uid://bwggrf7sbmkcv" path="res://addons/PlayerCharacter/Scenes/PlayerCharacterScene.tscn" id="8_80lis"]
-[ext_resource type="Script" uid="uid://bsqhrlcr7q1ou" path="res://addons/Maps/Scripts/waypoint_path_curve.gd" id="9_lulyw"]
-[ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/ThrusterDroneScene.tscn" id="10_16q18"]
+[ext_resource type="Script" uid="uid://caec4srps6nbs" path="res://addons/Maps/Scripts/template_map_scene.gd" id="1_lwr7m"]
+[ext_resource type="Material" uid="uid://bu7tj6ka05jwg" path="res://addons/Arts/Materials/StructureMaterial1.tres" id="2_5hxeo"]
+[ext_resource type="Material" uid="uid://cgn7do4y8jc0o" path="res://addons/Arts/Materials/StructureMaterial2.tres" id="3_c2g7x"]
+[ext_resource type="Script" uid="uid://bnwoh7ph255km" path="res://addons/Maps/Scripts/SpawnerManagerScript.gd" id="4_nho37"]
+[ext_resource type="PackedScene" uid="uid://bwggrf7sbmkcv" path="res://addons/PlayerCharacter/Scenes/PlayerCharacterScene.tscn" id="5_86vkg"]
+[ext_resource type="Script" uid="uid://bsqhrlcr7q1ou" path="res://addons/Maps/Scripts/waypoint_path_curve.gd" id="6_x84yn"]
+[ext_resource type="PackedScene" uid="uid://dhkbp32hmy3kw" path="res://Drones/Scenes/ThrusterDroneScene.tscn" id="7_ymekw"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_atpwd"]
 ground_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -40,69 +40,69 @@ radial_segments = 17
 rings = 8
 
 [node name="TemplateMap" type="Node3D"]
-script = ExtResource("1_ecgx1")
+script = ExtResource("1_lwr7m")
 
 [node name="Structures" type="Node3D" parent="."]
 
 [node name="Ground" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5, 0)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 size = Vector3(300, 10, 300)
 
 [node name="WallSouth" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -140)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(260, 4, 1)
 
 [node name="WallNorth" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 140)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(260, 4, 1)
 
 [node name="WallEast" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130, 2, 0)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(1, 4, 280)
 
 [node name="WallWest" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -130, 2, 0)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(1, 4, 280)
 
 [node name="StartGateLeft" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 2.5, -20)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 5, 0.5)
 
 [node name="StartGateRight" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 2.5, -20)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 5, 0.5)
 
 [node name="StartGateBar" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 5, -20)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(8.5, 0.3, 0.3)
 
 [node name="Slalom1" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 3, -5)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.3
@@ -110,7 +110,7 @@ height = 6.0
 
 [node name="Slalom2" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 3, -5)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.3
@@ -118,7 +118,7 @@ height = 6.0
 
 [node name="Slalom3" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 3, -5)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.3
@@ -126,7 +126,7 @@ height = 6.0
 
 [node name="Slalom4" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 3, -5)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.3
@@ -134,7 +134,7 @@ height = 6.0
 
 [node name="Slalom5" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 3, -5)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.3
@@ -142,7 +142,7 @@ height = 6.0
 
 [node name="Slalom6" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 3, -5)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.3
@@ -150,7 +150,7 @@ height = 6.0
 
 [node name="TunnelStraight" type="CSGCombiner3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 3, 15)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 
@@ -165,7 +165,7 @@ height = 15.0
 
 [node name="TunnelL" type="CSGCombiner3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 3, 25)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 
@@ -191,7 +191,7 @@ height = 15.0
 
 [node name="Hoop1" type="CSGTorus3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -10, 4, 35)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 inner_radius = 1.8
@@ -201,7 +201,7 @@ ring_sides = 10
 
 [node name="Hoop2" type="CSGTorus3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -5, 6, 50)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 inner_radius = 1.8
@@ -211,7 +211,7 @@ ring_sides = 10
 
 [node name="Hoop3" type="CSGTorus3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -15, 3, 65)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 inner_radius = 1.8
@@ -221,7 +221,7 @@ ring_sides = 10
 
 [node name="Pillar1" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 6, 10)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 radius = 1.2
@@ -229,7 +229,7 @@ height = 12.0
 
 [node name="Pillar2" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 7, 25)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 radius = 1.2
@@ -237,7 +237,7 @@ height = 14.0
 
 [node name="Pillar3" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45, 5, 40)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 radius = 1.2
@@ -245,7 +245,7 @@ height = 10.0
 
 [node name="Pillar4" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 8, 55)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 radius = 1.2
@@ -253,49 +253,49 @@ height = 16.0
 
 [node name="BridgeDeck" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 6, 80)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(20, 0.4, 2.5)
 
 [node name="BridgeSupportA" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 3, 80)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 6, 0.5)
 
 [node name="BridgeSupportB" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 3, 80)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 6, 0.5)
 
 [node name="BridgeRailA" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 6.7, 81.2)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(20, 0.2, 0.1)
 
 [node name="BridgeRailB" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 6.7, 78.8)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(20, 0.2, 0.1)
 
 [node name="Pad1" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 3, 10)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(6, 0.3, 6)
 
 [node name="Pad1Support" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 1.5, 10)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.7
@@ -303,14 +303,14 @@ height = 3.0
 
 [node name="Pad2" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65, 6, 25)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(5, 0.3, 5)
 
 [node name="Pad2Support" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65, 3, 25)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.6
@@ -318,21 +318,21 @@ height = 6.0
 
 [node name="Pad3" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 10, 40)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(4, 0.3, 4)
 
 [node name="Pad3Support" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 5, 40)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 height = 10.0
 
 [node name="HoverHole" type="CSGCombiner3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 7, -15)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 
@@ -346,49 +346,49 @@ height = 1.5
 
 [node name="HoverHoleLegA" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5, 3.5, -20.5)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 7, 0.5)
 
 [node name="HoverHoleLegB" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.5, 3.5, -20.5)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 7, 0.5)
 
 [node name="HoverHoleLegC" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5, 3.5, -9.5)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 7, 0.5)
 
 [node name="HoverHoleLegD" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.5, 3.5, -9.5)
-material_override = ExtResource("2_5tfl8")
+material_override = ExtResource("2_5hxeo")
 use_collision = true
 collision_mask = 10
 size = Vector3(0.5, 7, 0.5)
 
 [node name="Ramp1" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 0, 0, 1, -60, 2, -20)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(12, 0.4, 5)
 
 [node name="Ramp2" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 60, 2.5, -35)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(5, 0.4, 10)
 
 [node name="Archway" type="CSGCombiner3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -60)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 
@@ -403,28 +403,28 @@ height = 4.0
 
 [node name="FloatCube1" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -70, 5, 0)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(3, 3, 3)
 
 [node name="FloatCube2" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0, 0, 1, -75, 8, 15)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(2.5, 2.5, 2.5)
 
 [node name="FloatCube3" type="CSGBox3D" parent="Structures"]
 transform = Transform3D(0.5, 0.5, -0.707107, -0.5, 0.866025, 0.353553, 0.707107, 0.353553, 0.612372, -65, 6, 30)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 size = Vector3(3, 3, 3)
 
 [node name="FloatCube1Pedestal" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -70, 2.5, 0)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.25
@@ -432,7 +432,7 @@ height = 5.0
 
 [node name="FloatCube2Pedestal" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75, 4, 15)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.25
@@ -440,7 +440,7 @@ height = 8.0
 
 [node name="FloatCube3Pedestal" type="CSGCylinder3D" parent="Structures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65, 3, 30)
-material_override = ExtResource("3_id4o3")
+material_override = ExtResource("3_c2g7x")
 use_collision = true
 collision_mask = 10
 radius = 0.25
@@ -459,14 +459,14 @@ shadow_enabled = true
 
 [node name="SpawnerManager" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.5131, 0, -24.826)
-script = ExtResource("5_7p0qe")
+script = ExtResource("4_nho37")
 
 [node name="Spawner1" type="Node3D" parent="SpawnerManager"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.111524, 1, -12.8631)
 
 [node name="NamingConventionConverter" type="Node" parent="."]
 
-[node name="PlayerCharacter" parent="." instance=ExtResource("8_80lis")]
+[node name="PlayerCharacter" parent="." instance=ExtResource("5_86vkg")]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -2.11152, 1.43224, -31.995)
 baseModelHeight = 1.8
 
@@ -478,7 +478,7 @@ mesh = SubResource("SphereMesh_0ldo7")
 
 [node name="WaypointPath" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 6, -37)
-script = ExtResource("9_lulyw")
+script = ExtResource("6_x84yn")
 cruise_speed = 10.0
 lookahead_distance = 10.0
 max_lead_distance = 10.0
@@ -503,6 +503,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -2, -17)
 [node name="MeshInstance3D" type="MeshInstance3D" parent="WaypointPath/Waypoint2"]
 mesh = SubResource("SphereMesh_0ldo7")
 
-[node name="DroneScene" parent="." instance=ExtResource("10_16q18")]
+[node name="DroneScene" parent="." instance=ExtResource("7_ymekw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 4, -28)
 gravity_scale = 2.0

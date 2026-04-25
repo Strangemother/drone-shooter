@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="ControllerMapping" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ControllerMapping" load_steps=2 format=3 uid="uid://b3a7cybo4f3ff"]
 
-[ext_resource type="Script" path="res://Controller/Scripts/controller_mapping.gd" id="1"]
+[ext_resource type="Script" uid="uid://dsl5v3xskirh8" path="res://Controller/Scripts/controller_mapping.gd" id="1"]
 
 [resource]
 script = ExtResource("1")

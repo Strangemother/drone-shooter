@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="Drone Shooter"
-run/main_scene="uid://ccciphickyvps"
+run/main_scene="uid://hpjy5yqb06c0"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
+
+[display]
+
+window/vsync/vsync_mode=0
 
 [input]
 

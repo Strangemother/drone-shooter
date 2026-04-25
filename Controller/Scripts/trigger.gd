@@ -15,42 +15,32 @@ extends Control
 const DEAD_ZONE := 0.1
 
 ## Which joypad axis drives horizontal motion (positive = right).
-@export var axis_x_index: int = JOY_AXIS_LEFT_X
+@export var axis_index: int = JOY_AXIS_LEFT_X
 ## Which joypad axis drives vertical motion (positive = down, matches screen).
-@export var axis_y_index: int = JOY_AXIS_LEFT_Y
+#@export var axis_y_index: int = JOY_AXIS_LEFT_Y
 ## Invert the X axis if your hardware reports it reversed.
-@export var invert_x: bool = false
-## Invert the Y axis if your hardware reports it reversed.
-@export var invert_y: bool = false
+@export var invert: bool = false
 
 @onready var _background: ColorRect = $Background
 @onready var _dot: ColorRect = $Background/Indicator
 
 signal axis_value_change(axis, input, output)
 
+
 func _on_ready() -> void:
-	#XAxisTextField.text = str(axis_x_index)
-	#YAxisTextField.text = str(axis_y_index)
-	$XSpinBox.value = axis_x_index
-	$YSpinBox.value = axis_y_index
-	$YInvertCheckBox.button_pressed = invert_y
-	$XInvertCheckBox.button_pressed = invert_x
-
-func _on_y_spin_box_value_changed(value: float) -> void:
-	axis_y_index = value
-
-func _on_x_spin_box_value_changed(value: float) -> void:
-	axis_x_index = value
+	$SpinBox.value = axis_index
+	$InvertCheckBox.button_pressed = invert
 
 
+func _on_spin_box_value_changed(value: float) -> void:
+	axis_index = value
+
+	
 ## Assign axis indices and inversion flags at runtime, typically from a
 ## ControllerMapping resource selected in the controller test scene.
-func apply_axes(x_index: int, y_index: int, inv_x: bool = false, inv_y: bool = false) -> void:
-	axis_x_index = x_index
-	axis_y_index = y_index
-	invert_x = inv_x
-	invert_y = inv_y
-
+func apply_axes(x_index: int, inv: bool = false) -> void:
+	axis_index = x_index
+	invert = inv
 
 ## Poll the configured axes from the given device and update the indicator.
 ## Pass a device of -1 to centre the indicator (no controller connected).
@@ -60,30 +50,14 @@ func poll(device: int) -> void:
 		set_axes(0.0, 0.0)
 		return
 
-	var x := Input.get_joy_axis(device, axis_x_index)
-	var y := Input.get_joy_axis(device, axis_y_index)
-	print(axis_x_index)
-	if invert_x:
+	var x := Input.get_joy_axis(device, axis_index)
+	if invert:
 		x = -x
-	if invert_y:
-		y = -y
-	set_axes(x, y)
+	set_value(x)
 
-func set_x_value(axis_value):
-	current_axis.x = axis_value
+func set_value(axis_value):
+	current_axis.y = -axis_value
 	present_vector(current_axis)
-	var output = axis_value 
-	if invert_x:
-		output = -output
-	axis_value_change.emit(axis_x_index, axis_value, output)
-	
-func set_y_value(axis_value):
-	current_axis.y = axis_value
-	present_vector(current_axis)
-	var output = axis_value 
-	if invert_y:
-		output = -output
-	axis_value_change.emit(axis_y_index, axis_value, output)
 	
 var current_axis: Vector2 = Vector2.ZERO
 
@@ -93,26 +67,25 @@ func set_axes(x: float, y: float) -> void:
 	present_vector(current_axis)
 
 func present_vector(input: Vector2):
-	# Circular dead zone — cancel small stick drift.
-	if input.length() < DEAD_ZONE:
-		input = Vector2.ZERO
-
 	# Centre position of the dot when axes are at zero.
 	# max_travel is how far the dot's top-left corner can move from centre
 	# in each direction while keeping the dot fully inside the background.
-	var center_pos := (_background.size - _dot.size) / 2.0
-	var max_travel := center_pos
+	var center_pos := (_background.size - _dot.size) 
+	var max_travel := _background.size
 	
-	if invert_x:
-		input.x *= -1
-	if invert_y:
-		input.y *= -1
+	var output 
+	var trigger_value = abs(input.y)
+	if invert:
+		max_travel *= -1
+		trigger_value = 1 - trigger_value
+		output = input * max_travel
+		_dot.position = output
+	else:
+		output = input * max_travel
+		_dot.position = center_pos + output
+	axis_value_change.emit(axis_index, input, trigger_value)
 
-	_dot.position = center_pos + input * max_travel
 
-func _on_y_invert_check_box_toggled(toggled_on: bool) -> void:
-	invert_y = toggled_on
-
-
-func _on_x_invert_check_box_toggled(toggled_on: bool) -> void:
-	invert_x = toggled_on
+func _on_invert_check_box_toggled(toggled_on: bool) -> void:
+	invert = toggled_on
+	present_vector(current_axis)

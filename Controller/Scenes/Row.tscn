@@ -1,0 +1,27 @@
+[gd_scene load_steps=2 format=3 uid="uid://pjaai8ddfw0e"]
+
+[ext_resource type="Script" uid="uid://pkilynjyeghe" path="res://Controller/Scripts/Row.gd" id="1_bq0cw"]
+
+[node name="HBoxContainer" type="HBoxContainer"]
+theme_override_constants/separation = 20
+script = ExtResource("1_bq0cw")
+label = "Throttle"
+
+[node name="SetButton" type="Button" parent="."]
+layout_mode = 2
+text = "set
+"
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+text = "Label"
+
+[node name="Axis" type="SpinBox" parent="."]
+layout_mode = 2
+
+[node name="Value" type="Label" parent="."]
+layout_mode = 2
+text = "value"
+
+[connection signal="pressed" from="SetButton" to="." method="_on_set_button_pressed"]
+[connection signal="value_changed" from="Axis" to="." method="_on_axis_value_changed"]

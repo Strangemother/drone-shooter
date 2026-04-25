@@ -142,3 +142,7 @@ func hitscanHit(propulForce : float, propulDir: Vector3, propulPos : Vector3):
 func projectileHit(propulForce : float, propulDir: Vector3):
 	if propulDir != Vector3.ZERO: apply_central_force((global_transform.origin - propulDir) * propulForce)
 	
+
+
+func _on_controller_test_scene_controller_axis_change(name: Variant, output: Variant) -> void:
+	$FlightController._controller_axes[name] = output

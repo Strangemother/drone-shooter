@@ -1,0 +1,72 @@
+[gd_scene load_steps=2 format=3 uid="uid://ciicofueesrwg"]
+
+[ext_resource type="Script" uid="uid://cilw3oe2vla35" path="res://Controller/Scripts/joystick.gd" id="1_8gv7q"]
+
+[node name="JoystickLeft" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 200.0
+offset_bottom = 190.0
+script = ExtResource("1_8gv7q")
+invert_y = true
+metadata/_edit_group_ = true
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 99.0
+offset_top = 86.0
+offset_right = 199.0
+offset_bottom = 186.0
+size_flags_horizontal = 0
+color = Color(0.128906, 0.0733642, 0.0408227, 1)
+
+[node name="Indicator" type="ColorRect" parent="Background"]
+layout_mode = 0
+offset_right = 19.0
+offset_bottom = 19.0
+pivot_offset = Vector2(10, 10)
+size_flags_horizontal = 0
+color = Color(1, 0.568627, 0.317647, 1)
+
+[node name="XSpinBox" type="SpinBox" parent="."]
+layout_mode = 0
+offset_left = 107.0
+offset_top = 45.0
+offset_right = 193.563
+offset_bottom = 76.0
+alignment = 1
+update_on_text_changed = true
+select_all_on_focus = true
+
+[node name="YSpinBox" type="SpinBox" parent="."]
+layout_mode = 0
+offset_left = 7.0
+offset_top = 124.0
+offset_right = 93.5625
+offset_bottom = 155.0
+rounded = true
+alignment = 2
+update_on_text_changed = true
+select_all_on_focus = true
+
+[node name="YInvertCheckBox" type="CheckBox" parent="."]
+layout_mode = 0
+offset_left = 5.0
+offset_top = 159.0
+offset_right = 80.0
+offset_bottom = 190.0
+text = "Y Invert"
+
+[node name="XInvertCheckBox" type="CheckBox" parent="."]
+layout_mode = 0
+offset_left = 105.0
+offset_top = 8.0
+offset_right = 180.0
+offset_bottom = 39.0
+text = "X Invert"
+
+[connection signal="ready" from="." to="." method="_on_ready"]
+[connection signal="value_changed" from="XSpinBox" to="." method="_on_x_spin_box_value_changed"]
+[connection signal="value_changed" from="YSpinBox" to="." method="_on_y_spin_box_value_changed"]
+[connection signal="toggled" from="YInvertCheckBox" to="." method="_on_y_invert_check_box_toggled"]
+[connection signal="toggled" from="XInvertCheckBox" to="." method="_on_x_invert_check_box_toggled"]

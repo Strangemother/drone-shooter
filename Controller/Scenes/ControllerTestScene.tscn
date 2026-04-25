@@ -1,69 +1,117 @@
-[gd_scene load_steps=3 format=3 uid="uid://ccciphickyvps"]
+[gd_scene load_steps=7 format=3 uid="uid://ccciphickyvps"]
 
 [ext_resource type="Script" uid="uid://b5ejwitepwh2d" path="res://Controller/Scripts/controller_test_scene.gd" id="1_7wnmg"]
-[ext_resource type="Script" uid="uid://cilw3oe2vla35" path="res://Controller/Scripts/joystick.gd" id="2_g1mof"]
+[ext_resource type="PackedScene" uid="uid://ciicofueesrwg" path="res://Controller/Scenes/joystick.tscn" id="2_rw21v"]
+[ext_resource type="PackedScene" uid="uid://di8laofpiqrou" path="res://Controller/Scenes/trigger.tscn" id="3_ip4hj"]
+[ext_resource type="Script" uid="uid://dg7tx33tu7gd4" path="res://Controller/Scripts/circle.gd" id="3_rw21v"]
+[ext_resource type="PackedScene" uid="uid://pjaai8ddfw0e" path="res://Controller/Scenes/Row.tscn" id="5_hxd80"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_ip4hj"]
+font_size = 10
+font_color = Color(0.985714, 1, 0.925884, 1)
+outline_color = Color(0, 0, 0, 1)
 
 [node name="ControllerTestScene" type="Node2D"]
 script = ExtResource("1_7wnmg")
 
 [node name="ControllerName" type="RichTextLabel" parent="."]
 offset_left = 6.0
-offset_top = 8.0
+offset_top = 22.0
 offset_right = 416.0
-offset_bottom = 48.0
+offset_bottom = 62.0
 text = "Controller Name"
 scroll_active = false
 autowrap_mode = 0
 
-[node name="JoystickLeft" type="Control" parent="."]
+[node name="Inputs" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 16.0
-offset_top = 120.0
-offset_right = 117.0
-offset_bottom = 221.0
-script = ExtResource("2_g1mof")
-axis_x_index = 3
-axis_y_index = 2
-invert_y = true
+offset_left = 184.0
+offset_top = 171.0
+offset_right = 984.0
+offset_bottom = 421.0
+
+[node name="JoystickLeft" parent="Inputs" instance=ExtResource("2_rw21v")]
+layout_mode = 2
+offset_left = 134.0
+offset_right = 134.0
+offset_bottom = 0.0
+
+[node name="JoystickRight" parent="Inputs" instance=ExtResource("2_rw21v")]
+layout_mode = 2
+offset_left = 371.0
+offset_right = 371.0
+offset_bottom = 0.0
+axis_x_index = 2
+axis_y_index = 3
+invert_y = false
+
+[node name="TriggerLeft" parent="Inputs" instance=ExtResource("3_ip4hj")]
+layout_mode = 2
+offset_right = 0.0
+offset_bottom = 0.0
+axis_index = 4
+
+[node name="TriggerRight" parent="Inputs" instance=ExtResource("3_ip4hj")]
+layout_mode = 2
+offset_left = 634.0
+offset_right = 634.0
+offset_bottom = 0.0
+
+[node name="Control" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 1078.0
+offset_top = 200.0
+offset_right = 1118.0
+offset_bottom = 240.0
+grow_horizontal = 2
+grow_vertical = 2
 metadata/_edit_group_ = true
 
-[node name="Background" type="ColorRect" parent="JoystickLeft"]
-layout_mode = 0
-offset_right = 100.0
-offset_bottom = 100.0
-size_flags_horizontal = 0
-color = Color(0.128906, 0.0733642, 0.0408227, 1)
+[node name="Circle" type="Node2D" parent="Control"]
+script = ExtResource("3_rw21v")
+color = Color(0.78125, 0.78125, 0.78125, 1)
 
-[node name="Indicator" type="ColorRect" parent="JoystickLeft"]
-layout_mode = 0
-offset_right = 19.0
-offset_bottom = 19.0
-pivot_offset = Vector2(10, 10)
-size_flags_horizontal = 0
-color = Color(1, 0.568627, 0.317647, 1)
+[node name="CircleIndicator" type="Node2D" parent="Control"]
+script = ExtResource("3_rw21v")
+radius = 5.0
+color = Color(0.78125, 0, 0.0402875, 1)
 
-[node name="JoystickRight" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 0
-offset_left = 189.0
-offset_top = 119.0
-offset_right = 290.0
-offset_bottom = 220.0
-script = ExtResource("2_g1mof")
-invert_y = true
+[node name="fps_label" type="Label" parent="."]
+offset_left = 4.0
+offset_top = 2.0
+offset_right = 44.0
+offset_bottom = 25.0
+text = "FPS"
+label_settings = SubResource("LabelSettings_ip4hj")
 
-[node name="Background" type="ColorRect" parent="JoystickRight"]
-layout_mode = 0
-offset_right = 100.0
-offset_bottom = 100.0
-size_flags_horizontal = 0
-color = Color(0.128906, 0.0733642, 0.0408227, 1)
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+offset_left = 12.0
+offset_top = 500.0
+offset_right = 274.0
+offset_bottom = 636.0
 
-[node name="Indicator" type="ColorRect" parent="JoystickRight"]
-layout_mode = 0
-offset_right = 19.0
-offset_bottom = 19.0
-pivot_offset = Vector2(10, 10)
-size_flags_horizontal = 0
-color = Color(1, 0.568627, 0.317647, 1)
+[node name="Row" parent="VBoxContainer" instance=ExtResource("5_hxd80")]
+layout_mode = 2
+axis = 5
+
+[node name="Row2" parent="VBoxContainer" instance=ExtResource("5_hxd80")]
+layout_mode = 2
+label = "Pitch"
+axis = 1
+
+[node name="Row3" parent="VBoxContainer" instance=ExtResource("5_hxd80")]
+layout_mode = 2
+label = "Roll"
+axis = 0
+
+[node name="Row4" parent="VBoxContainer" instance=ExtResource("5_hxd80")]
+layout_mode = 2
+label = "Yaw"
+axis = 2

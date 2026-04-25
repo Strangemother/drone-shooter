@@ -342,6 +342,8 @@ class_name FlightQuadController
 ## When empty (default) spin signs are auto-derived from motor position.
 var spin_sign_override: Dictionary = {}
 
+func controller_axis_value(_name):
+	return _controller_axes.get(_name, 0.0)
 
 func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 	if thrusters.is_empty():
@@ -349,10 +351,14 @@ func update_mix(body: RigidBody3D, thrusters: Array[Node]) -> void:
 
 	# ── Read pilot stick inputs ─────────────────────────────────────
 	# All in [−1, 1].  Inherited action names from FlightControllerBase.
-	var lift:  float = get_axis_value(throttle_down_action,  throttle_up_action)
-	var roll:  float = get_axis_value(roll_left_action,      roll_right_action)   # + = roll right
-	var pitch: float = get_axis_value(pitch_backward_action, pitch_forward_action) # + = pitch forward / nose down
-	var yaw:   float = get_axis_value(yaw_left_action,       yaw_right_action)    # + = yaw right (CW)
+	var lift:  float = controller_axis_value('Throttle')
+	#var lift:  float = get_axis_value(throttle_down_action,  throttle_up_action)
+	var roll:  float = controller_axis_value("Roll")   # + = roll right
+	#var roll:  float = get_axis_value(roll_left_action,      roll_right_action)   # + = roll right
+	var pitch: float = controller_axis_value("Pitch") # + = pitch forward / nose down
+	#var pitch: float = get_axis_value(pitch_backward_action, pitch_forward_action) # + = pitch forward / nose down
+	#var yaw:   float = get_axis_value(yaw_left_action,       yaw_right_action)    # + = yaw right (CW)
+	var yaw:   float = controller_axis_value("Yaw")    # + = yaw right (CW)
 
 	# Apply per-axis expo (centre-stick softening).  Endpoints are
 	# preserved so max authority is unchanged — only the slope near
